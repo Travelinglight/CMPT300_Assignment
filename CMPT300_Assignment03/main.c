@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
     int nCore;  // the number of available processors
 
     nCore = sysconf(_SC_NPROCESSORS_ONLN);
-    printf("nCore");
+    printf("%d\n", nCore);
     // check arguments
     if (argc != 2) {
         printf("input format:\n./lyrebird [config file]\n");
