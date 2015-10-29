@@ -1,5 +1,0 @@
-*.o
-*.log
-*.swp
-bin/*
-build/*
