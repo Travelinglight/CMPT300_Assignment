@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <style>
+            body, html {
+                font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
+                background-color: #f1f1f1;
+                margin:0px;
+                padding:0px;
+            }
+            div.title {
+                text-align:center;
+            }
+            div.block {
+                margin:auto;
+                margin-top: 15px;
+                padding:15px;
+                width:1160px;
+                background:white;
+                font-size:120%;
+            }
+            code {
+                display:block;
+                padding:5px;
+                white-space:pre-wrap;
+                background: lavender; 
+            }
+        </style>
+    </head>
+    <body>
+        <div class = "title block">
+            <h1>Lyrebird II</h1>
+        </div>
+        <div class = "block">
+            <h3>Overview</h3>
+            <p>This project is a multi-process decrypter which decrypts many encripted files simultaneously. The project consists of three parts: main block, lyreegg block and decrypt block. The main block is in charge of parse config file and create/supervise child processes that decrypt tweets. The lyreegg block is the main part of the child processes of lyrebird. It read every line of the given input file, call decrpyt block and then write the result to the designated files.</p>
+        </div>
+        <div class = "block">
+            <h3>Design & Implementation</h3>
+            <p>The lyreegg block has been completed in Assignment 1. In this assignment, I encapsulated lyreegg block after a little modification. In this section, I'll first introduce the main block and then show the modification I made to Assignment 1.</p>
+            <p>In the main block, I create a process for each line of config file. All the process works simultaneously, so that the decryption process is accelerated. In order to supervise the process the main block creates, I use an array to store the pid of every child processes. Here's how my main block works:
+            <ol>
+                <li>Scan the config file to find the number of lines in the file, denote it as nLine;</li>
+                <li>Create an integer array of size nLine, to take down pid of child processes;</li>
+                <li>Scan the config file again, for each line, do the following steps:
+                    <ol>
+                        <li>create a process</li>
+                        <li>record the pid of the created process in the int array created in Step 2</li>
+                    </ol>
+                <li>After reading the whole config file, check the status of each child process recorded in the pid array, until all the child processes exit.</li>
+            </ol>
+            </p>
+            <p>Each child process created by the main block executes the lyreegg block to decrypt the designated file. After the decryption, the process prints the decrypt status before it exits with code 0/1, indicating that the process executed successfully/unsuccessfully.</p>
+            <p>The only difference between my assignment 1 program and lyreegg, the main part in child process, is that lyreegg uses return rather than exit to end currently executing block. This modification aims to print processing infomation before child process ends. For example, if child process failed to open the encrypted file, it'll return an integer 1 rather than exit with code 1. The returned integer 1 would be interpreted as a failure signal, and be printed.</p>
+        </div>
+        <div class="block">
+            <h3>Testing</h3>
+            <p>I used the testing data in assignment 1 to test this project. First I wrote all the encrypted files' names (from testing data) and decrypted destination files' names into config file. Then I compare the output of my project and the provided output using diff command, for example <br><code>diff -Z t10-pt-File-with-10000-tweets.txt t10-pt-File-with-10000-tweets-mine.txt</code>I wrote all the diff commands in a single .sh file, and ran the file. The result of all diff commands is empty, indicating that my output is same as the provided output data.</p>
+            <p>I also tested other cases:
+            <ol>
+                <li>When there's no input config file: the usage is printed on the screen</li>
+                <li>When the config file is empty: my program does nothing</li>
+            </ol>
+            The result seems reasonable.
+        </div>
+        <div style="height:15px;"></div>
+    </body>
+</html>

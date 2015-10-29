@@ -1,0 +1,43 @@
+==============================================================================================
+ _      _      __    _______       ________    ______       __     _______      _____
+| |     \ \   / /   | -----\ \    | _______|  |  ____ \    |__|   | -----\ \   |  ___ \
+| |      \ \_/ /    | |____| |    | |         | |____| |    __    | |____| |   | |    \ \
+| |       \   /     |  ___  /     | |______   |       /    |  |   |  ___  /    | |     \ \
+| |        | |      | |  \ \      |  ______|  |  ____ \    |  |   | |  \ \     | |      | |
+| |        | |      | |   \ \     | |         | |    \ |   |  |   | |   \ \    | |     / /
+| ---|     | |      | |    \ \    | |______   | |____/ /   |  |   | |    \ \   | |____/ /
++----|     |_|      |_|     \_\   |________|  |_______/    |__|   |_|     \_\  |______/
+==============================================================================================
+
+
+## Basic Info
+------------------------------------------------
+           my name : Jingda(Kingston) Chen    
+    student number : 301295759                
+     SFU user name : jca303                   
+   lecture section : CMPT 300 D100, Fall 2015 
+ instructor's name : Brian Booth              
+         TA's name : Scott Kristjanson        
+
+
+## Project Description
+------------------------------------------------
+This project is written to decrypt tweets following the 4 steps specified in Assignment Documentation (https://courses.cs.sfu.ca/2015fa-cmpt-300-d1/pages/AssignmentOne/view).
+
+"main" function is used to read encrypted file, call decrypt function and write decrypted tweets to the destination file.
+
+"readline" function is called by main function. It is used to read encrypted file and return strings line by line. (standard c doesn't provide readline function) This function reads char by char from the given position of the file, appends the char to a string (initially empty), until it reaches a linebreak mark ('\n').
+
+"decrypt" function is called by main function. It is used to execute the 4 descryption steps.
+
+"fastpower" function is called by decrypt function. It is used to calculate (x^y)%m in a fast way. The algorithm is clearly descripted in wikipedia (https://en.wikipedia.org/wiki/Modular_exponentiation#Right-to-left_binary_method)
+
+
+## Building and Running
+------------------------------------------------
+1. Please put memwatch.h in "include" folder, and memwatch.c in "src" folder;
+2. Enter "src" folder and type "make clean", to make sure that previous building is cleaned up;
+3. Execute command "make", to build the project;
+4. The executable binary file (lyrebird) could be found in "bin" folder, and the temporary .obj files could be found in "build" folder;
+5. Place the encrypted_tweets file at the same directory with the executable file (lyrebird), and run with the command: ./lyrebird [input file] [output file]
+    e.g. ./lyrebird encrypted_tweets.txt decrypted_output.txt
