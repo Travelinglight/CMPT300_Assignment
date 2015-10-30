@@ -1,0 +1,42 @@
+========================================================================================================
+ _      _      __    _______       ________    ______       __     _______      _____         ____
+| |     \ \   / /   | -----\ \    | _______|  |  ____ \    |__|   | -----\ \   |  ___ \      |___  \
+| |      \ \_/ /    | |____| |    | |         | |____| |    __    | |____| |   | |    \ \         \ \
+| |       \   /     |  ___  /     | |______   |       /    |  |   |  ___  /    | |     \ \         | |
+| |        | |      | |  \ \      |  ______|  |  ____ \    |  |   | |  \ \     | |      | |       / /
+| |        | |      | |   \ \     | |         | |    \ |   |  |   | |   \ \    | |     / /      / /
+| ---|     | |      | |    \ \    | |______   | |____/ /   |  |   | |    \ \   | |____/ /     / /_____
++----|     |_|      |_|     \_\   |________|  |_______/    |__|   |_|     \_\  |______/      |________|
+========================================================================================================
+
+
+## Basic Info
+------------------------------------------------
+           my name : Jingda(Kingston) Chen    
+    student number : 301295759                
+     SFU user name : jca303                   
+   lecture section : CMPT 300 D100, Fall 2015 
+ instructor's name : Brian Booth              
+         TA's name : Scott Kristjanson        
+
+
+## Project Description
+------------------------------------------------
+This project is written to accelerate lyrebird 1 with multi-processes dealing with more than one encrypted file.
+
+The "main" function in lyrebird 1 is encapsulated into a function: lyreegg, because it's used in child processes of lyrebird. "lyreegg" is used to read encrypted file, call decrypt function and write decrypted tweets to the destination file, which are given as the two arguments.
+
+In the main function, lyrebird first opens the configure file, reads line by line to find the number of lines (nLine) in the file. Then it callocs an integer array of nLine integers to store all the process ID of child processes that's going to be forked. The next step, lyrebird read the configure again line by line, get the input/output file in each line and fork child processes which calls lyreegg function to decrypt tweets. After each fork, the child process ID would be recorded in the integer array.
+
+Instead of exit(), lyreegg returns an integer value representing the result of the execution, whether it succeeds or not. According to the returned value, child processes decide to exit with value 0 or 1, which means exit normally or with an error. Before exiting, of course, the child processes free all calloced arrays copied from parent processes.
+
+When all the lines are read and the child processes are craeted, lyrebird go on to check the state of child processes round after round using waitpid function, until all the child processes have exited, whether normally or with error. Then lyrebird exits.
+
+## Building and Running
+------------------------------------------------
+1. Please put memwatch.h and memwatch.c in root folder;
+2. Type "make clean", to make sure that previous building is cleaned up;
+3. Execute command "make", to build the project;
+4. The executable binary file "lyrebird" is in root directory;
+5. Place the configure file at the same directory with the executable file (lyrebird), and run with the command: ./lyrebird [configure file]
+    e.g. ./lyrebird config_file.txt
