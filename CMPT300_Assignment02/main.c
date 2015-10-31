@@ -104,7 +104,7 @@ int main(int argc, char **argv) {
         // initialize char arrays
         memset(conf_str, 0, 2050);
         memset(encpt, 0, 1024);
-        memset(encpt, 0, 1024);
+        memset(decpt, 0, 1024);
     }
     fclose(fp);
 
