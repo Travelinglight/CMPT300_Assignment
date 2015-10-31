@@ -16,14 +16,15 @@
 #include "memwatch.h"
 
 int main(int argc, char **argv) {
-    pid_t c_pid, pid;
-    int i, nLine, flag;
+    pid_t c_pid;    // child process ID
+    pid_t pid;  // for waiting
+    int i, flag;
     int state;  // whether child process run successfully
     int *pids;  // to store all children processes' pid
     FILE *fp; // input file
     char *conf_str;  // each line of configure file
-    char *encpt, *decpt;    // encrypted/decrypted file name
     char *time_str; // to format time
+    char mode[1024];    // schedule mode
     time_t raw_time;
     int nCore;  // the number of available processors
 
@@ -42,45 +43,38 @@ int main(int argc, char **argv) {
 
     // get the number of available processors
     nCore = sysconf(_SC_NPROCESSORS_ONLN);
+    // initialize the pid array
+    pids = (int*)calloc(nCore, sizeof(int));
 
     // initialize strings
     time_str = (char*)calloc(30, sizeof(char));
     conf_str = (char*)calloc(2050, sizeof(char));
-    encpt = (char*)calloc(1024, sizeof(char));
-    decpt = (char*)calloc(1024, sizeof(char));
 
     // find out how many lines in configure file
     nLine = 0;
     while (fgets(conf_str, 2048, fp)) {
         nLine++;
     }
-    pids = (int*)calloc(nLine, sizeof(int));
 
     nLine = 0;
     fseek(fp, 0, SEEK_SET);
     while (fgets(conf_str, 2048, fp)) {
         // get input/output file name
         conf_str[strlen(conf_str) - 1] = '\0';
-        strncpy(encpt, conf_str, strchr(conf_str, ' ') - conf_str);
-        strcpy(decpt, strchr(conf_str, ' ') + 1);
 
         // fork child process
         c_pid = fork();
         if (c_pid == 0) {   // in child process
-            state = lyreegg(encpt, decpt);  // decrypt
             if (state == 0) {   // if decrypted successfully, print log
                 memset(time_str, 0, 30);
                 time(&raw_time);
                 strcpy(time_str, ctime(&raw_time));
                 time_str[strlen(time_str) - 1] = '\0';
-                printf("[%s] Decryption of %s complete. Process ID #%d Exiting.\n", time_str, encpt, getpid());
             }
 
             // free all char arrays copied from parent process
             free(time_str);
             free(conf_str);
-            free(encpt);
-            free(decpt);
             free(pids);
 
             // exit with state code
@@ -92,7 +86,6 @@ int main(int argc, char **argv) {
             time(&raw_time);
             strcpy(time_str, ctime(&raw_time));
             time_str[strlen(time_str) - 1] = '\0';
-            printf("[%s] Child process ID #%d created to decrypt %s.\n", time_str, c_pid, encpt);
             pids[nLine++] = c_pid;  // record the pid of the child process
         }
         else {
@@ -100,15 +93,11 @@ int main(int argc, char **argv) {
             // free all malloced arrays before exiting
             free(time_str);
             free(conf_str);
-            free(encpt);
-            free(decpt);
             free(pids);
             exit(2);
         }
         // initialize char arrays
         memset(conf_str, 0, 2050);
-        memset(encpt, 0, 1024);
-        memset(encpt, 0, 1024);
     }
     fclose(fp);
 
@@ -139,7 +128,5 @@ int main(int argc, char **argv) {
     // free all malloced arrays before exiting
     free(time_str);
     free(conf_str);
-    free(encpt);
-    free(decpt);
     free(pids);
 }

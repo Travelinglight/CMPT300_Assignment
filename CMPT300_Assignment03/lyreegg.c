@@ -17,6 +17,8 @@
 
 int lyreegg(char *infile, char *outfile) {
     char *str;
+    char *conf_str;  // configure line from parent process
+    char *encpt, *decpt;    // encrypted/decrypted file name
     FILE *enfp; // input file
     FILE *defp; // output file
     int i;
