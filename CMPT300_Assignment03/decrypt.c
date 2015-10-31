@@ -64,7 +64,7 @@ void decrypt(char *str) {
         tmpstr[strlen(tmpstr)] = oristr[i];
         i++;
     }
-    if (i % 6 > 0)
+    if (i % 8 > 0)
         strcat(str, tmpstr);    // concatenate the rest of the string
 
     // step 2:
@@ -81,7 +81,7 @@ void decrypt(char *str) {
     }
 
     // step 4:
-    memset(str, 0, 140);
+    memset(str, 0, 200);
     for (i = 0; i < len; i++) {
         for (j = 5; j >= 0; j--) {
             str[strlen(str)] = dict2[code[i] / base[j]];

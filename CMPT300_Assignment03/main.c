@@ -46,6 +46,7 @@ int main(int argc, char **argv) {
     // initialize the pid array
     pids = (int*)calloc(nCore, sizeof(int));
 
+
     // initialize strings
     time_str = (char*)calloc(30, sizeof(char));
     conf_str = (char*)calloc(2050, sizeof(char));

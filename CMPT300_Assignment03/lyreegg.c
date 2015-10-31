@@ -23,6 +23,9 @@ int lyreegg(char *infile, char *outfile) {
     FILE *defp; // output file
     int i;
 
+    strncpy(encpt, conf_str, strchr(conf_str, ' ') - conf_str);
+    strcpy(decpt, strchr(conf_str, ' ') + 1);
+
     // open files
     enfp = fopen(infile, "r");   // open encrypted file
     defp = fopen(outfile, "w");   // open decrypted file
