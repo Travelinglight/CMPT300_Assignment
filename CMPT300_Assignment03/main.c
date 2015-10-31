@@ -27,8 +27,6 @@ int main(int argc, char **argv) {
     time_t raw_time;
     int nCore;  // the number of available processors
 
-    nCore = sysconf(_SC_NPROCESSORS_ONLN);
-    printf("%d\n", nCore);
     // check arguments
     if (argc != 2) {
         printf("input format:\n./lyrebird [config file]\n");
@@ -41,6 +39,9 @@ int main(int argc, char **argv) {
         printf("file open failed\n");
         exit(1);
     }
+
+    // get the number of available processors
+    nCore = sysconf(_SC_NPROCESSORS_ONLN);
 
     // initialize strings
     time_str = (char*)calloc(30, sizeof(char));
