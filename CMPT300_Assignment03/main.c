@@ -172,8 +172,7 @@ int main(int argc, char **argv) {
         if (c_pid == 0) {   // in child process
             char *encpt, *decpt;    // the name of encrpyted file and decrpyted file
 
-            // free/close unnecessary variable
-            free(pids);
+            // close unnecessary pipes
             for (i = 0; i < nCore; i++) {
                 close(p2cFD[i][1]);
                 if (i != pCP)
@@ -219,13 +218,14 @@ int main(int argc, char **argv) {
             free(decpt);
 
             // free inherited variables
+            free(pids);
             free(buff);
             free(time_str);
-            for (i = 0; i < nCore; i++)
+            for (i = 0; i < nCore; i++) {
                 free(p2cFD[i]);
-            free(p2cFD);
-            for (i = 0; i < nCore; i++)
                 free(c2pFD[i]);
+            }
+            free(p2cFD);
             free(c2pFD);
 
             // exit with state code
@@ -387,6 +387,7 @@ int main(int argc, char **argv) {
 
     // free all malloced arrays before exiting
     free(time_str);
+    free(buff);
     free(pids);
     for (i = 0; i < nCore; i++) {
         free(p2cFD[i]);
