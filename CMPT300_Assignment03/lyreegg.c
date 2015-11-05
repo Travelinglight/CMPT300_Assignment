@@ -17,20 +17,19 @@
 
 int lyreegg(char *infile, char *outfile) {
     char *str;
-    char *conf_str;  // configure line from parent process
-    char *encpt, *decpt;    // encrypted/decrypted file name
     FILE *enfp; // input file
     FILE *defp; // output file
     int i;
 
-    strncpy(encpt, conf_str, strchr(conf_str, ' ') - conf_str);
-    strcpy(decpt, strchr(conf_str, ' ') + 1);
-
     // open files
     enfp = fopen(infile, "r");   // open encrypted file
     defp = fopen(outfile, "w");   // open decrypted file
-    if ((enfp == NULL) || (defp == NULL)) {
-        printf("file open failed\n");
+    if (enfp == NULL) {
+        printf("file %s open failed\n", infile);
+        return 1;
+    }
+    if (defp == NULL) {
+        printf("file %s open failed\n", outfile);
         return 1;
     }
 
