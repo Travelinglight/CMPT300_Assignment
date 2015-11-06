@@ -10,8 +10,8 @@
 CC=gcc
 CFLAGS=-I.
 
-DEPS = decrypt.h memwatch.h lyreegg.h
-OBJ = memwatch.o decrypt.o lyreegg.o main.o 
+DEPS = gettime.h decrypt.h memwatch.h lyreegg.h
+OBJ = memwatch.o gettime.o decrypt.o lyreegg.o main.o 
 
 %.o: %.c $(DEPS)
 	$(CC) -DMEMWATCH -DMW_STDIO -c -g -o $@ $< $(CFLAGS)

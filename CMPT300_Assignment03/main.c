@@ -18,37 +18,84 @@
 #include "memwatch.h"
 
 #define MAX_BUFF 2500
+#define FNAMELEN 1200
 
-void timeFormat(char *time_str) {
-    time_t raw_time;
+void freemem(int nLine, int nCore, int *pids, int *crtpos, int **p2cFD, int **c2pFD, char *buff, char *encpt, char *decpt, char ***rrQueue) {
+    int i, j;
 
-    memset(time_str, 0, 30);
-    time(&raw_time);
-    strcpy(time_str, ctime(&raw_time));
-    time_str[strlen(time_str) - 1] = '\0';
+    if (pids) free(pids);
+    if (crtpos) free(crtpos);
+    if (buff) free(buff);
+    if (encpt) free(encpt);
+    if (decpt) free(decpt);
+    if (p2cFD) {
+        for (i = 0; i < nCore; i++) {
+            free(p2cFD[i]);
+        }
+        free(p2cFD);
+    }
+    if (c2pFD) {
+        for (i = 0; i < nCore; i++) {
+            free(c2pFD[i]);
+        }
+        free(c2pFD);
+    }
+    if (rrQueue) {
+        for (i = 0; i < nCore; i++) {
+            for (j = 0; j < nLine / nCore + 1; j++)
+                free(rrQueue[i][j]);
+            free(rrQueue[i]);
+        }
+        free(rrQueue);
+    }
+}
+
+void killson(int pCP, int *alive, int **p2cFD, int **c2pFD, int *pids, char *buff, char *time_str) {
+    int state;
+    pid_t pid;              // for waiting
+
+    // close pipes
+    close(p2cFD[pCP][1]);
+    while (read(c2pFD[pCP][0], buff, MAX_BUFF) > 0);
+    close(c2pFD[pCP][0]);
+
+    // wait child process to exit
+    while ((pid = waitpid(pids[pCP], &state, WNOHANG)) == 0);
+    if (pid == -1) {    // childe process terminates unsuccessfully
+        gettime(time_str);
+        printf("[%s] Child process ID #%d did not terminate successfully.\n", time_str, pids[pCP]);
+        pids[pCP] = -1;
+    }
+    else if (pid == pids[pCP]) {  // child process terminates successfully
+        pids[pCP] = -1;
+    }
+
+    (*alive)--;
 }
 
 int main(int argc, char **argv) {
-    FILE *fp;               // input file
+    FILE *fp = NULL;        // input file
     pid_t c_pid;            // child process ID
     pid_t pid;              // for waiting
-    int pCP, i, j, flag, mode; // pCP stands for the child process number
-    int nLine;              // the number of lines in the config file
+    int pCP, i, j, flag;    // pCP stands for the child process number
+    int mode = 0;           // scheduling mode
+    int nLine = 0;          // the number of lines in the config file
     int state;              // whether child process run successfully
-    int *pids;              // to store all children processes' pid
-    int *serve;             // the serve order in fcfs scheduling
-    int *crtpos;            // the current position of rrQueues
-    int nCore;              // the number of available processors
+    int *pids = NULL;       // to store all children processes' pid
+    int *crtpos = NULL;     // the current position of rrQueues
+    int nCore = 0;          // the number of available processors
     int alive;              // the number of alive child processes
-    int **p2cFD;            // parent to child pip file discrilter
-    int **c2pFD;            // child to parent pip file discrilter
+    int **p2cFD = NULL;     // parent to child pip file discrilter
+    int **c2pFD = NULL;     // child to parent pip file discrilter
     int nBytes;             // number of bytes read from pipe
     int selectRes;          // result of select
     int nfds;               // the max range of readfd for select
     fd_set readfds;         // the set of read fd for select
-    char *time_str;         // to format time
-    char *buff;             // for reading pipe
-    char ***rrQueue;        // the queue for round robin
+    char time_str[30];
+    char *buff = NULL;      // for reading pipe
+    char *encpt = NULL;     // file name of encrypted tweets
+    char *decpt = NULL;     // file name of decrypted tweets
+    char ***rrQueue = NULL; // the queue for round robin
 
     // check arguments
     if (argc != 2) {
@@ -59,14 +106,15 @@ int main(int argc, char **argv) {
     // open files
     fp = fopen(argv[1], "r");   // open config file
     if (fp == NULL) {
-        timeFormat(time_str);
+        gettime(time_str);
         printf("[%s] Parent process ID #%d error: file %s open failed\n", time_str, getpid(), argv[1]);
         exit(1);
     }
 
     // initialize strings
-    time_str = (char*)calloc(30, sizeof(char));
     buff = (char*)calloc(MAX_BUFF, sizeof(char));
+    encpt = (char*)calloc(FNAMELEN, sizeof(char));
+    decpt = (char*)calloc(FNAMELEN, sizeof(char));
 
     // get the number of available processors
     nCore = sysconf(_SC_NPROCESSORS_ONLN) - 1;
@@ -80,6 +128,21 @@ int main(int argc, char **argv) {
     for (i = 0; i < nCore; i++)
         c2pFD[i] = (int*)calloc(2, sizeof(int));
 
+    // check memory allocation error
+    flag = 1;
+    if (!(time_str && buff && encpt && decpt && pids && p2cFD && c2pFD))
+        flag = 0;
+    for (i = 0; i < nCore; i++) {
+        if (!(p2cFD[i] && c2pFD[i]))
+            flag = 0;
+    }
+    if (!flag) {
+        gettime(time_str);
+        printf("[%s] Parent process ID%d error: memory allocation failed!\n", time_str, getpid());
+        freemem(nLine, nCore, pids, crtpos, p2cFD, c2pFD, buff, encpt, decpt, rrQueue);
+        exit(1);
+    }
+
     // set scheduling mode
     if (fgets(buff, MAX_BUFF, fp)) {
         if (buff[strlen(buff) - 1] == '\n')
@@ -89,74 +152,46 @@ int main(int argc, char **argv) {
         else if (strcmp(buff, "round robin") == 0)  // round robin
             mode = 1;
         else {  // mode error
-            timeFormat(time_str);
+            gettime(time_str);
             printf("[%s] Parent process ID#%d error: scheduling mode not right!\n", time_str, getpid());
 
             // free resources
-            free(time_str);
-            free(buff);
-            free(pids);
-            for (i = 0; i < nCore; i++) {
-                free(p2cFD[i]);
-                free(c2pFD[i]);
-            }
-            free(p2cFD);
-            free(c2pFD);
+            freemem(nLine, nCore, pids, crtpos, p2cFD, c2pFD, buff, encpt, decpt, rrQueue);
             exit(1);
         }
     }
     else {
-        timeFormat(time_str);
+        gettime(time_str);
         printf("[%s] Parent process ID#%d error: no scheduling mode selected!\n", time_str, getpid());
 
         // free resources
-        free(time_str);
-        free(buff);
-        free(pids);
-        for (i = 0; i < nCore; i++) {
-            free(p2cFD[i]);
-            free(c2pFD[i]);
-        }
-        free(p2cFD);
-        free(c2pFD);
+        freemem(nLine, nCore, pids, crtpos, p2cFD, c2pFD, buff, encpt, decpt, rrQueue);
         exit(1);
     }
+
+    // get the number of configure lines
+    while (fgets(buff, MAX_BUFF, fp))
+        nLine++;
 
     // create pipes
     for (i = 0; i < nCore; i++) {
         // create pipe from parent to children
         if (pipe(p2cFD[i]) == -1) {
-            timeFormat(time_str);
+            gettime(time_str);
             printf("[%s] pipe creating failed.\n", time_str);
 
             // free resources
-            free(time_str);
-            free(buff);
-            free(pids);
-            for (i = 0; i < nCore; i++) {
-                free(p2cFD[i]);
-                free(c2pFD[i]);
-            }
-            free(p2cFD);
-            free(c2pFD);
+            freemem(nLine, nCore, pids, crtpos, p2cFD, c2pFD, buff, encpt, decpt, rrQueue);
             exit(1);
         }
 
         // create pipe from parent to children
         if (pipe(c2pFD[i]) == -1) {
-            timeFormat(time_str);
+            gettime(time_str);
             printf("[%s] pipe creating failed.\n", time_str);
 
             // free resources
-            free(time_str);
-            free(buff);
-            free(pids);
-            for (i = 0; i < nCore; i++)
-                free(p2cFD[i]);
-            free(p2cFD);
-            for (i = 0; i < nCore; i++)
-                free(c2pFD[i]);
-            free(c2pFD);
+            freemem(nLine, nCore, pids, crtpos, p2cFD, c2pFD, buff, encpt, decpt, rrQueue);
             exit(1);
         }
     }
@@ -170,7 +205,6 @@ int main(int argc, char **argv) {
         // fork child process
         c_pid = fork();
         if (c_pid == 0) {   // in child process
-            char *encpt, *decpt;    // the name of encrpyted file and decrpyted file
 
             // close unnecessary pipes
             for (i = 0; i < nCore; i++) {
@@ -184,9 +218,6 @@ int main(int argc, char **argv) {
                     close(c2pFD[i][1]);
             }
 
-            // initialize variables
-            encpt = (char*)calloc(1200, sizeof(char));
-            decpt = (char*)calloc(1200, sizeof(char));
 
             // write to parent process
             sprintf(buff, "I'm ready!");
@@ -198,11 +229,17 @@ int main(int argc, char **argv) {
                     buff[strlen(buff) - 1] = '\0';
 
                 // get input/output file name
-                memset(encpt, 0, 1200);
-                memset(decpt, 0, 1200);
+                memset(encpt, 0, FNAMELEN);
+                memset(decpt, 0, FNAMELEN);
                 strncpy(encpt, buff, strchr(buff, ' ') - buff);
                 strcpy(decpt, strchr(buff, ' ') + 1);
                 state = lyreegg(encpt, decpt);
+
+                // print status
+                if (state == 0) {
+                    gettime(time_str);
+                    printf("[%s] Process ID #%d decrypted %s successfully.\n", time_str, getpid(), encpt);
+                }
 
                 // write to parent process
                 sprintf(buff, "I'm ready!");
@@ -213,58 +250,33 @@ int main(int argc, char **argv) {
             close(p2cFD[pCP][0]);
             close(c2pFD[pCP][1]);
 
-            // free local variables
-            free(encpt);
-            free(decpt);
-
-            // free inherited variables
-            free(pids);
-            free(buff);
-            free(time_str);
-            for (i = 0; i < nCore; i++) {
-                free(p2cFD[i]);
-                free(c2pFD[i]);
-            }
-            free(p2cFD);
-            free(c2pFD);
-
+            // free resources
+            freemem(nLine, nCore, pids, crtpos, p2cFD, c2pFD, buff, encpt, decpt, rrQueue);
             // exit with state code
             exit(0);
         }
         else if (c_pid > 0) {   // in parent process
             close(p2cFD[i][0]);
             close(c2pFD[i][1]);
-            timeFormat(time_str);
+            gettime(time_str);
             printf("[%s] Child process ID #%d created.\n", time_str, c_pid);
             pids[i] = c_pid;  // record the pid of the child process
         }
         else {  // fork failed
-            timeFormat(time_str);
+            gettime(time_str);
             printf("[%s] Fork Failed\n", time_str);
 
             // free all malloced arrays before exiting
-            free(time_str);
-            free(buff);
-            free(pids);
-            for (i = 0; i < nCore; i++)
-                free(p2cFD[i]);
-            free(p2cFD);
-            for (i = 0; i < nCore; i++)
-                free(c2pFD[i]);
-            free(c2pFD);
-            exit(2);
+            freemem(nLine, nCore, pids, crtpos, p2cFD, c2pFD, buff, encpt, decpt, rrQueue);
+            exit(1);
         }
         // initialize char arrays
     }
-
-
-    // reset file pointer to config lines
-    fseek(fp, 0, SEEK_SET);
-    fgets(buff, MAX_BUFF, fp);
+    alive = nCore;
 
     // initialize round robin queues
     if (mode == 1) {
-        // claim memory
+        // allocate memory
         rrQueue = (char***)malloc(nCore * sizeof(char**));
         for (i = 0; i < nCore; i++) {
             rrQueue[i] = (char**)malloc((nLine / nCore + 1) * sizeof(char*));
@@ -272,16 +284,39 @@ int main(int argc, char **argv) {
                 rrQueue[i][j] = (char*)calloc(MAX_BUFF, sizeof(char));
         }
 
+        // initialize queue head to 0
+        crtpos = (int*)calloc(nCore, sizeof(int));
+        
+        // check memory allocation error
+        flag = 1;
+        if (!crtpos)
+            flag = 0;
+        for (i = 0; i < nCore; i++) {
+            if (!rrQueue[i])
+                flag = 0;
+            for (j = 0; j < nCore / nLine + 1; j++)
+                if (!rrQueue[i][j])
+                    flag = 0;
+        }
+        if (!flag) {
+            gettime(time_str);
+            printf("[%s] Parent process ID%d error: memory allocation failed!\n", time_str, getpid());
+            for (i = 0; i < nCore; i++)
+                killson(i, &alive, p2cFD, c2pFD, pids, buff, time_str);
+            freemem(nLine, nCore, pids, crtpos, p2cFD, c2pFD, buff, encpt, decpt, rrQueue);
+            exit(1);
+        }
+
+        // reset file pointer to config lines
+        fseek(fp, 0, SEEK_SET);
+        fgets(buff, MAX_BUFF, fp);
+
         // fill queues
         for (i = 0; i < nLine; i++)
             fgets(rrQueue[i % nCore][i / nCore], MAX_BUFF, fp);
-
-        // initialize queue head to 0
-        crtpos = (int*)calloc(nCore, sizeof(int));
     }
 
     // start dispatching jobs
-    alive = nCore;
     while (alive > 0) {
         // setup readfds
         nfds = -1;
@@ -302,75 +337,32 @@ int main(int argc, char **argv) {
                 if (FD_ISSET(c2pFD[i][0], &readfds)) {
                     read(c2pFD[i][0], buff, MAX_BUFF);
                     if (strcmp(buff, "kill me!") == 0) {
-                        close(p2cFD[i][1]);
-                        while (read(c2pFD[i][0], buff, MAX_BUFF) > 0);
-                        close(c2pFD[i][0]);
-
-                        // wait child process to exit
-                        while ((pid = waitpid(pids[i], &state, WNOHANG)) == 0);
-                        if (pid == -1) {    // childe process terminates unsuccessfully
-                            timeFormat(time_str);
-                            printf("[%s] Child process ID #%d did not terminate successfully.\n", time_str, pids[i]);
-                            pids[i] = -1;
-                        }
-                        else if (pid == pids[i]) {  // child process terminates successfully
-                            timeFormat(time_str);
-                            printf("[%s] Child process ID #%d terminates successfully.\n", time_str, pid);
-                            pids[i] = -1;
-                        }
-
-                        alive--;
+                        killson(i, &alive, p2cFD, c2pFD, pids, buff, time_str);
                     }
                     else {
                         if (mode == 0) {    // fcfs
                             if (fgets(buff, MAX_BUFF, fp)) {
+                                memset(encpt, 0, FNAMELEN);
+                                strncpy(encpt, buff, strchr(buff, ' ') - buff);
+                                gettime(time_str);
+                                printf("[%s] Child process ID #%d will decrypt %s.\n", time_str, pids[i], encpt);
                                 write(p2cFD[i][1], buff, strlen(buff) + 1);
                             }
                             else {
-                                close(p2cFD[i][1]);
-                                while (read(c2pFD[i][0], buff, MAX_BUFF) > 0);
-                                close(c2pFD[i][0]);
-
-                                // wait child process to exit
-                                while ((pid = waitpid(pids[i], &state, WNOHANG)) == 0);
-                                if (pid == -1) {    // childe process terminates unsuccessfully
-                                    timeFormat(time_str);
-                                    printf("[%s] Child process ID #%d did not terminate successfully.\n", time_str, pids[i]);
-                                    pids[i] = -1;
-                                }
-                                else if (pid == pids[i]) {  // child process terminates successfully
-                                    timeFormat(time_str);
-                                    printf("[%s] Child process ID #%d terminates successfully.\n", time_str, pid);
-                                    pids[i] = -1;
-                                }
-
-                                alive--;
+                                killson(i, &alive, p2cFD, c2pFD, pids, buff, time_str);
                             }
                         }
                         else if (mode == 1) {   // round robin
                             if ((crtpos[i] < nLine / nCore + 1) && (strlen(rrQueue[i][crtpos[i]]) > 0)) {
+                                memset(encpt, 0, FNAMELEN);
+                                strncpy(encpt, rrQueue[i][crtpos[i]], strchr(rrQueue[i][crtpos[i]], ' ') - rrQueue[i][crtpos[i]]);
+                                gettime(time_str);
+                                printf("[%s] Child process ID #%d will decrypt %s.\n", time_str, pids[i], encpt);
                                 write(p2cFD[i][1], rrQueue[i][crtpos[i]], strlen(rrQueue[i][crtpos[i]]) + 1);
                                 crtpos[i]++;
                             }
                             else {
-                                close(p2cFD[i][1]);
-                                while (read(c2pFD[i][0], buff, MAX_BUFF) > 0);
-                                close(c2pFD[i][0]);
-
-                                // wait child process to exit
-                                while ((pid = waitpid(pids[i], &state, WNOHANG)) == 0);
-                                if (pid == -1) {    // childe process terminates unsuccessfully
-                                    timeFormat(time_str);
-                                    printf("[%s] Child process ID #%d did not terminate successfully.\n", time_str, pids[i]);
-                                    pids[i] = -1;
-                                }
-                                else if (pid == pids[i]) {  // child process terminates successfully
-                                    timeFormat(time_str);
-                                    printf("[%s] Child process ID #%d terminates successfully.\n", time_str, pid);
-                                    pids[i] = -1;
-                                }
-
-                                alive--;
+                                killson(i, &alive, p2cFD, c2pFD, pids, buff, time_str);
                             }
                         }
                     }
@@ -386,23 +378,6 @@ int main(int argc, char **argv) {
     }
 
     // free all malloced arrays before exiting
-    free(time_str);
-    free(buff);
-    free(pids);
-    for (i = 0; i < nCore; i++) {
-        free(p2cFD[i]);
-        free(c2pFD[i]);
-    }
-    free(p2cFD);
-    free(c2pFD);
-    if (mode == 1) {
-        for (i = 0; i < nCore; i++) {
-            for (j = 0; j < nLine / nCore + 1; j++)
-                free(rrQueue[i][j]);
-            free(rrQueue[i]);
-        }
-        free(rrQueue);
-        free(crtpos);
-    }
+    freemem(nLine, nCore, pids, crtpos, p2cFD, c2pFD, buff, encpt, decpt, rrQueue);
     return(0);
 }
