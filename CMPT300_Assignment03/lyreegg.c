@@ -7,15 +7,10 @@
 // instructor's name : Brian Booth              
 //         TA's name : Scott Kristjanson        
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <time.h>
-#include "decrypt.h"
-#include "memwatch.h"
+#include "lyreegg.h"
 
 int lyreegg(char *infile, char *outfile) {
+    char time_str[30];
     char *str;
     FILE *enfp; // input file
     FILE *defp; // output file
@@ -25,7 +20,8 @@ int lyreegg(char *infile, char *outfile) {
     enfp = fopen(infile, "r");   // open encrypted file
     defp = fopen(outfile, "w");   // open decrypted file
     if (enfp == NULL) {
-        printf("file %s open failed\n", infile);
+        gettime(time_str);
+        printf("[%s] Process ID #%d cannot open file %s.\n", time_str, getpid(), infile);
         return 1;
     }
     if (defp == NULL) {

@@ -20,6 +20,13 @@
 #define MAX_BUFF 2500
 #define FNAMELEN 1200
 
+////////////////////////////////////////////////////////////////////////////////
+// NAME: freemem
+// DESCRIPTION: free all allocated memory.
+// USES GLOBAL: none
+// MODIFIES GL: pids, crtpos, p2cFD, c2pFD, buff, encpt, decpt, rrQueue
+// RETURNS: none
+// /////////////////////////////////////////////////////////////////////////////
 void freemem(int nLine, int nCore, int *pids, int *crtpos, int **p2cFD, int **c2pFD, char *buff, char *encpt, char *decpt, char ***rrQueue) {
     int i, j;
 
@@ -50,6 +57,13 @@ void freemem(int nLine, int nCore, int *pids, int *crtpos, int **p2cFD, int **c2
     }
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// NAME: killson
+// DESCRIPTION: kill pCPth son.
+// USES GLOBAL: none
+// MODIFIES GL: alive, p2cFD, c2pFD, pids, buff, time_str
+// RETURNS: none
+// /////////////////////////////////////////////////////////////////////////////
 void killson(int pCP, int *alive, int **p2cFD, int **c2pFD, int *pids, char *buff, char *time_str) {
     int state;
     pid_t pid;              // for waiting
@@ -73,6 +87,13 @@ void killson(int pCP, int *alive, int **p2cFD, int **c2pFD, int *pids, char *buf
     (*alive)--;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// NAME: main
+// DESCRIPTION: main.
+// USES GLOBAL: none
+// MODIFIES GL: doesn't apply
+// RETURNS: int -- the state of exiting
+// /////////////////////////////////////////////////////////////////////////////
 int main(int argc, char **argv) {
     FILE *fp = NULL;        // input file
     pid_t c_pid;            // child process ID
@@ -161,12 +182,9 @@ int main(int argc, char **argv) {
         }
     }
     else {
-        gettime(time_str);
-        printf("[%s] Parent process ID#%d error: no scheduling mode selected!\n", time_str, getpid());
-
         // free resources
         freemem(nLine, nCore, pids, crtpos, p2cFD, c2pFD, buff, encpt, decpt, rrQueue);
-        exit(1);
+        exit(0);
     }
 
     // get the number of configure lines
@@ -179,8 +197,6 @@ int main(int argc, char **argv) {
         if (pipe(p2cFD[i]) == -1) {
             gettime(time_str);
             printf("[%s] pipe creating failed.\n", time_str);
-
-            // free resources
             freemem(nLine, nCore, pids, crtpos, p2cFD, c2pFD, buff, encpt, decpt, rrQueue);
             exit(1);
         }
@@ -189,8 +205,6 @@ int main(int argc, char **argv) {
         if (pipe(c2pFD[i]) == -1) {
             gettime(time_str);
             printf("[%s] pipe creating failed.\n", time_str);
-
-            // free resources
             freemem(nLine, nCore, pids, crtpos, p2cFD, c2pFD, buff, encpt, decpt, rrQueue);
             exit(1);
         }
@@ -252,34 +266,32 @@ int main(int argc, char **argv) {
 
             // free resources
             freemem(nLine, nCore, pids, crtpos, p2cFD, c2pFD, buff, encpt, decpt, rrQueue);
-            // exit with state code
             exit(0);
         }
         else if (c_pid > 0) {   // in parent process
             close(p2cFD[i][0]);
             close(c2pFD[i][1]);
-            gettime(time_str);
-            printf("[%s] Child process ID #%d created.\n", time_str, c_pid);
             pids[i] = c_pid;  // record the pid of the child process
         }
         else {  // fork failed
             gettime(time_str);
-            printf("[%s] Fork Failed\n", time_str);
-
-            // free all malloced arrays before exiting
+            printf("[%s] Parent process ID #%d error: Fork Failed\n", time_str, getpid());
             freemem(nLine, nCore, pids, crtpos, p2cFD, c2pFD, buff, encpt, decpt, rrQueue);
             exit(1);
         }
-        // initialize char arrays
     }
     alive = nCore;
+
+    // reset file pointer to config lines
+    fseek(fp, 0, SEEK_SET);
+    fgets(buff, MAX_BUFF, fp);
 
     // initialize round robin queues
     if (mode == 1) {
         // allocate memory
         rrQueue = (char***)malloc(nCore * sizeof(char**));
         for (i = 0; i < nCore; i++) {
-            rrQueue[i] = (char**)malloc((nLine / nCore + 1) * sizeof(char*));
+            rrQueue[i] = (char**)calloc((nLine / nCore + 1), sizeof(char*));
             for (j = 0; j < nLine / nCore + 1; j++)
                 rrQueue[i][j] = (char*)calloc(MAX_BUFF, sizeof(char));
         }
@@ -294,7 +306,7 @@ int main(int argc, char **argv) {
         for (i = 0; i < nCore; i++) {
             if (!rrQueue[i])
                 flag = 0;
-            for (j = 0; j < nCore / nLine + 1; j++)
+            for (j = 0; j < nLine / nCore + 1; j++)
                 if (!rrQueue[i][j])
                     flag = 0;
         }
@@ -306,10 +318,6 @@ int main(int argc, char **argv) {
             freemem(nLine, nCore, pids, crtpos, p2cFD, c2pFD, buff, encpt, decpt, rrQueue);
             exit(1);
         }
-
-        // reset file pointer to config lines
-        fseek(fp, 0, SEEK_SET);
-        fgets(buff, MAX_BUFF, fp);
 
         // fill queues
         for (i = 0; i < nLine; i++)
@@ -336,44 +344,37 @@ int main(int argc, char **argv) {
                 // Check the fd, and process
                 if (FD_ISSET(c2pFD[i][0], &readfds)) {
                     read(c2pFD[i][0], buff, MAX_BUFF);
-                    if (strcmp(buff, "kill me!") == 0) {
+                    if (strcmp(buff, "kill me!") == 0) {    // child process requires to be killed
                         killson(i, &alive, p2cFD, c2pFD, pids, buff, time_str);
                     }
-                    else {
+                    else {  // assign tasks
+
+                        // get task
                         if (mode == 0) {    // fcfs
-                            if (fgets(buff, MAX_BUFF, fp)) {
-                                memset(encpt, 0, FNAMELEN);
-                                strncpy(encpt, buff, strchr(buff, ' ') - buff);
-                                gettime(time_str);
-                                printf("[%s] Child process ID #%d will decrypt %s.\n", time_str, pids[i], encpt);
-                                write(p2cFD[i][1], buff, strlen(buff) + 1);
-                            }
-                            else {
-                                killson(i, &alive, p2cFD, c2pFD, pids, buff, time_str);
-                            }
+                            if (!(fgets(buff, MAX_BUFF, fp)))
+                                strcpy(buff, "");
                         }
-                        else if (mode == 1) {   // round robin
-                            if ((crtpos[i] < nLine / nCore + 1) && (strlen(rrQueue[i][crtpos[i]]) > 0)) {
-                                memset(encpt, 0, FNAMELEN);
-                                strncpy(encpt, rrQueue[i][crtpos[i]], strchr(rrQueue[i][crtpos[i]], ' ') - rrQueue[i][crtpos[i]]);
-                                gettime(time_str);
-                                printf("[%s] Child process ID #%d will decrypt %s.\n", time_str, pids[i], encpt);
-                                write(p2cFD[i][1], rrQueue[i][crtpos[i]], strlen(rrQueue[i][crtpos[i]]) + 1);
-                                crtpos[i]++;
-                            }
-                            else {
+                        else {  // round robin
+                            if ((crtpos[i] < nLine / nCore + 1) && (strlen(rrQueue[i][crtpos[i]]) > 0))
+                                strcpy(buff, rrQueue[i][crtpos[i]++]);
+                            else
+                                strcpy(buff, "");
+                        }
+
+                        // write to pipe
+                        if (strlen(buff) > 0) {
+                            memset(encpt, 0, FNAMELEN);
+                            strncpy(encpt, buff, strchr(buff, ' ') - buff);
+                            gettime(time_str);
+                            printf("[%s] Child process ID #%d will decrypt %s.\n", time_str, pids[i], encpt);
+                            write(p2cFD[i][1], buff, strlen(buff) + 1);
+                        }
+                        else {  // no tasks to be assigned
                                 killson(i, &alive, p2cFD, c2pFD, pids, buff, time_str);
-                            }
                         }
                     }
                 }
             }
-        }
-        else if (selectRes < 0) {   // select error occurred
-            continue;
-        }
-        else {  // nothing seleted
-            continue;
         }
     }
 
