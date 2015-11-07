@@ -1,13 +1,13 @@
-========================================================================================================
- _      _      __    _______       ________    ______       __     _______      _____         ____
-| |     \ \   / /   | -----\ \    | _______|  |  ____ \    |__|   | -----\ \   |  ___ \      |___  \
-| |      \ \_/ /    | |____| |    | |         | |____| |    __    | |____| |   | |    \ \         \ \
-| |       \   /     |  ___  /     | |______   |       /    |  |   |  ___  /    | |     \ \         | |
-| |        | |      | |  \ \      |  ______|  |  ____ \    |  |   | |  \ \     | |      | |       / /
-| |        | |      | |   \ \     | |         | |    \ |   |  |   | |   \ \    | |     / /      / /
-| ---|     | |      | |    \ \    | |______   | |____/ /   |  |   | |    \ \   | |____/ /     / /_____
-+----|     |_|      |_|     \_\   |________|  |_______/    |__|   |_|     \_\  |______/      |________|
-========================================================================================================
+==============================================================================================================
+ _      _      __    _______       ________    ______       __     _______      _____         _____________
+| |     \ \   / /   | -----\ \    | _______|  |  ____ \    |__|   | -----\ \   |  ___ \      |_   _   _   _|
+| |      \ \_/ /    | |____| |    | |         | |____| |    __    | |____| |   | |    \ \      | | | | | |
+| |       \   /     |  ___  /     | |______   |       /    |  |   |  ___  /    | |     \ \     | | | | | |
+| |        | |      | |  \ \      |  ______|  |  ____ \    |  |   | |  \ \     | |      | |    | | | | | |
+| |        | |      | |   \ \     | |         | |    \ |   |  |   | |   \ \    | |     / /     | | | | | |
+| ---|     | |      | |    \ \    | |______   | |____/ /   |  |   | |    \ \   | |____/ /     _| |_| |_| |_
++----|     |_|      |_|     \_\   |________|  |_______/    |__|   |_|     \_\  |______/      |_____________|
+==============================================================================================================
 
 
 ## Basic Info
@@ -22,15 +22,15 @@
 
 ## Project Description
 ------------------------------------------------
-This project is written to accelerate lyrebird 1 with multi-processes dealing with more than one encrypted file.
+Lyrebird III is a project for decrypting tweets using the decryption algorithm descripted in Assignment #1 pdf. The main improvements compared with Lyrebird II is:
 
-The "main" function in lyrebird 1 is encapsulated into a function: lyreegg, because it's used in child processes of lyrebird. "lyreegg" is used to read encrypted file, call decrypt function and write decrypted tweets to the destination file, which are given as the two arguments.
+1. Lyrebird III creates nCore child processes, where nCore is the current number of available processors. Each child process decrypt several tweets files. Compared with Lyrebird II, Lyrebird III creates much fewer child processes, which means it saves lots of time and resources on fork() as well as on context switch.
 
-In the main function, lyrebird first opens the configure file, reads line by line to find the number of lines (nLine) in the file. Then it callocs an integer array of nLine integers to store all the process ID of child processes that's going to be forked. The next step, lyrebird read the configure again line by line, get the input/output file in each line and fork child processes which calls lyreegg function to decrypt tweets. After each fork, the child process ID would be recorded in the integer array.
+2. Lyrebird III use pipe for parent-child processes communication. Parent process assigns tasks to child process by writing to pipe, and child processes report to parent process through pipe when they finish a task.
 
-Instead of exit(), lyreegg returns an integer value representing the result of the execution, whether it succeeds or not. According to the returned value, child processes decide to exit with value 0 or 1, which means exit normally or with an error. Before exiting, of course, the child processes free all calloced arrays copied from parent processes.
+3. Lyrebird III allows user to choose scheduling mode (round robin or fcfs), and assign tasks to child processes using the scheduling algorithm told by user in config file.
 
-When all the lines are read and the child processes are craeted, lyrebird go on to check the state of child processes round after round using waitpid function, until all the child processes have exited, whether normally or with error. Then lyrebird exits.
+4. When a decryption fails, the child process doesn't exit. Instead, it would print a line of error info and ask for another task.
 
 ## Building and Running
 ------------------------------------------------

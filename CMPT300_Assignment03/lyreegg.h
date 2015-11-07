@@ -18,6 +18,14 @@
 #include "decrypt.h"
 #include "gettime.h"
 #include "memwatch.h"
+
+////////////////////////////////////////////////////////////////////////////////
+// NAME: lyreegg
+// DESCRIPTION: handling descriptions.
+// USES GLOBAL: none
+// MODIFIES GL: none
+// RETURNS: int status
+// /////////////////////////////////////////////////////////////////////////////
 int lyreegg(char *infile, char *outfile);
 
 #endif

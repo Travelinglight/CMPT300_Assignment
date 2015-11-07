@@ -14,6 +14,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include "memwatch.h"
+
+////////////////////////////////////////////////////////////////////////////////
+// NAME: lyreegg
+// DESCRIPTION: decrypt a string (replace the original string)
+// USES GLOBAL: none
+// MODIFIES GL: str
+// RETURNS: none
+// /////////////////////////////////////////////////////////////////////////////
 void decrypt(char *str);
 
 #endif

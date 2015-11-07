@@ -33,35 +33,20 @@
         </div>
         <div class = "block">
             <h3>Overview</h3>
-            <p>This project is a multi-process decrypter which decrypts many encripted files simultaneously. The project consists of three parts: main block, lyreegg block and decrypt block. The main block is in charge of parse config file and create/supervise child processes that decrypt tweets. The lyreegg block is the main part of the child processes of lyrebird. It read every line of the given input file, call decrpyt block and then write the result to the designated files.</p>
+            <p>This project is a multi-process decrypter which decrypts several encripted files simultaneously. The project mainly consists of three parts: main block, lyreegg block and decrypt block. The main block specifies the parent/child processes relations, such as how many child processes to create, how to communicate, and what to communicate. The lyreegg block is in charge of handling decriptions. It reads every line of the given input file, calls decrpyt block and then writes the result to the designated files. In each block, gettime function is called to get current time in case a message needs to be printed.</p>
         </div>
         <div class = "block">
             <h3>Design & Implementation</h3>
-            <p>The lyreegg block has been completed in Assignment 1. In this assignment, I encapsulated lyreegg block after a little modification. In this section, I'll first introduce the main block and then show the modification I made to Assignment 1.</p>
-            <p>In the main block, I create a process for each line of config file. All the process works simultaneously, so that the decryption process is accelerated. In order to supervise the process the main block creates, I use an array to store the pid of every child processes. Here's how my main block works:
-            <ol>
-                <li>Scan the config file to find the number of lines in the file, denote it as nLine;</li>
-                <li>Create an integer array of size nLine, to take down pid of child processes;</li>
-                <li>Scan the config file again, for each line, do the following steps:
-                    <ol>
-                        <li>create a process</li>
-                        <li>record the pid of the created process in the int array created in Step 2</li>
-                    </ol>
-                <li>After reading the whole config file, check the status of each child process recorded in the pid array, until all the child processes exit.</li>
-            </ol>
-            </p>
-            <p>Each child process created by the main block executes the lyreegg block to decrypt the designated file. After the decryption, the process prints the decrypt status before it exits with code 0/1, indicating that the process executed successfully/unsuccessfully.</p>
-            <p>The only difference between my assignment 1 program and lyreegg, the main part in child process, is that lyreegg uses return rather than exit to end currently executing block. This modification aims to print processing infomation before child process ends. For example, if child process failed to open the encrypted file, it'll return an integer 1 rather than exit with code 1. The returned integer 1 would be interpreted as a failure signal, and be printed.</p>
+            <p>The four components of this project are: main, lyreegg, decrypt and gettime.</p>
+            <p><b>gettime:</b>contains one function (gettime). It is used to get the current time and format it into a string provided in arguments. The time string would be used at the beginning of each message. This block is called in all three other blocks.</p>
+            <p><b>decrypt:</b>contains two functions (decrypt, fastpower). Decrypt function decrypts the string given by argument, and stores the decryption result in the given string. While decrypting, the fastpower function would be called inside decrypt function, to perform power fast. This block is called inside lyreegg function, to decrypt each line of the encrypted file.</p>
+            <p><b>lyreegg:</b>contains one function (lyreegg). It is used to decrypt a given file, and write the results into another file. This block is transformed from the main function of Lyrebird I, called by child process, when it gets a task and need to decrypt a file.</p>
+            <p><b>main:</b>contains three functions (main, freemem, killson). The main function create nCore child processes, where nCore is the number of available processors. It also create pipes for parent/child communications. The scheduling mode is read from config file and set in the main function. After all the child processes are created, the parent process read config file and assign tasks to children according to the scheduling algorithm through pipes. These are all defined in main function. The other two functions: freemem and killson, are used to free allocated memory before exiting and to kill a child process when it is necessary.</p>
         </div>
         <div class="block">
             <h3>Testing</h3>
-            <p>I used the testing data in assignment 1 to test this project. First I wrote all the encrypted files' names (from testing data) and decrypted destination files' names into config file. Then I compare the output of my project and the provided output using diff command, for example <br><code>diff -Z t10-pt-File-with-10000-tweets.txt t10-pt-File-with-10000-tweets-mine.txt</code>I wrote all the diff commands in a single .sh file, and ran the file. The result of all diff commands is empty, indicating that my output is same as the provided output data.</p>
-            <p>I also tested other cases:
-            <ol>
-                <li>When there's no input config file: the usage is printed on the screen</li>
-                <li>When the config file is empty: my program does nothing</li>
-            </ol>
-            The result seems reasonable.
+            <p>I reused the testing package for assignment #2 to test Lyrebird III. first I added a line "fcfs" at the beginning of each configuration file, and ran the test by command line. Then I changed the first line of each configuration file to "round robin", to test round robin scheduling.</p>
+            <p>The testing case 5 failed for both scheduling mode. The number of output messages does not comply with the correct_message. I checked it manually and found the correct_message is for assignment #2, which has not only "cannot open file" message but also "terminate unsuccessfully" message, which is unnecessary in Lyrebird III. So all the testing cases passed. </p> 
         </div>
         <div style="height:15px;"></div>
     </body>
