@@ -22,9 +22,15 @@
 #include "gettime.h"
 
 #define MAX_HOST_NAME 80
-#define MAX_HOST_ADDR 16
+#define MAX_IP_ADDR 16
 #define MAX_TIME_STR 30
 #define MAX_CONNECT 1000
+
+typedef struct clientinfo {
+    int sktfd;
+    char ipaddr[MAX_IP_ADDR];
+    struct clientinfo* next;
+} client;
 
 int serverInit() {
     char *hostaddr;
@@ -37,7 +43,7 @@ int serverInit() {
     struct hostent *hentry;             // host entry
 
     // get ip address
-    hostaddr = (char*)calloc(MAX_HOST_ADDR + 1, sizeof(char));
+    hostaddr = (char*)calloc(MAX_IP_ADDR + 1, sizeof(char));
     if (getifaddrs(&ifaddr) == -1) {
         printf("getifaddrs failed\n");
         exit(1);
@@ -70,6 +76,7 @@ int serverInit() {
     if ((skt = socket(AF_INET, SOCK_STREAM, 0)) < 0) {  // start a socket
         return -1;
     }
+    fcntl(skt, F_SETFL, O_NONBLOCK);
     if (bind(skt, (struct sockaddr*)&sa, sizeof(struct sockaddr_in)) < 0) { // bind address to the socket
         close(skt);
         return -1;
@@ -87,24 +94,82 @@ void showServer(int skt) {
     struct sockaddr_in sa;              // socket address
     int len = sizeof(struct sockaddr);
     char time_str[MAX_TIME_STR];
+    char hostaddr[MAX_IP_ADDR];
 
     getsockname(skt, (struct sockaddr*)&sa, &len);
+    inet_ntop(AF_INET, &(sa.sin_addr), hostaddr, MAX_IP_ADDR);
     gettime(time_str);
-    printf("[%s] lyrebird.server: PID %d on host %s, port %d\n", time_str, getpid(), inet_ntoa(sa.sin_addr), ntohs(sa.sin_port));
+    printf("[%s] lyrebird.server: PID %d on host %s, port %d\n", time_str, getpid(), hostaddr, ntohs(sa.sin_port));
+}
+
+void welcome(int serverSkt, client *clients) {
+    int t;
+    struct sockaddr_in sa;              // socket address
+    int len = sizeof(struct sockaddr);
+    char time_str[MAX_TIME_STR];
+    char clientaddr[MAX_IP_ADDR];
+    client *newNode;
+
+    // accept connection
+    t = accept(serverSkt, (struct sockaddr*)&sa, &len);
+    if (t < 0) {
+        printf("Accept error\n");
+        exit(1);
+    }
+
+    // print client info
+    inet_ntop(AF_INET, &(sa.sin_addr), clientaddr, MAX_IP_ADDR);
+    gettime(time_str);
+    printf("[%s] Successfully connected to lyrebird client %s.\n", time_str, clientaddr);
+
+    // add to linked list
+    newNode = (client*)malloc(sizeof(client));
+    newNode->sktfd = t;
+    strcpy(newNode->ipaddr, clientaddr);
+    newNode->next = clients->next;
+    clients->next = newNode;
 }
 
 int main(int argc, char **argv) {
-    int skt;
+    int serverSkt;          // the listening socket
+    int nfds;               // the max range of readfd for select
+    fd_set readfds;         // the set of read fd for select
+    int selectRes;          // result of select
+    client clients;         // a list of clients
+    client *pClient;        // for iterating through client list
+    client *tmpClient;      // temporary client pointer for deleting
 
     // establishment
-    skt = serverInit();
-    showServer(skt);
+    serverSkt = serverInit();
+    showServer(serverSkt);
+
+    // client list initialization
+    clients.sktfd = -1;
+    clients.next = NULL;
+    strcpy(clients.ipaddr, "");
 
     // do something
-    
+    while (1) {
+        // setup readfds
+        nfds = serverSkt;
+        FD_ZERO(&readfds);
+        FD_SET(serverSkt, &readfds);
+        for (pClient = clients->next; pClient != NULL; pClient = pClient->next) {
+            FD_SET(pClient->sktfd, &readfds);
+            nfds = nfds < pClient->sktfd ? pClient->sktfd : nfds;
+        }
+
+        // check child process message
+        selectRes = select(nfds + 1, &readfds, NULL, NULL, NULL);
+        if (selectRes > 0) {    // selected something
+            if (FD_ISSET(serverSkt, &readfds)) {
+                welcome(serverSkt, &clients);
+            }
+        }
+    }
 
     // exiting
-    close(skt);
+    close(serverSkt);
 
     return 0;
 }
