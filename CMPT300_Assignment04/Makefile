@@ -13,6 +13,7 @@ CC=gcc
 CFLAGS=-I.
 
 DEPS = gettime.h memwatch.h
+OBJ = memwatch.o gettime.o lyrenest.o lyrebird.o
 sOBJ = memwatch.o gettime.o lyrenest.o
 cOBJ = memwatch.o gettime.o lyrebird.o
 

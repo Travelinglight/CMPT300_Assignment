@@ -25,6 +25,7 @@
 #define MAX_IP_ADDR 16
 #define MAX_TIME_STR 30
 #define MAX_CONNECT 1000
+#define MAX_BUFF 2500
 
 typedef struct clientinfo {
     int sktfd;
@@ -130,6 +131,29 @@ void welcome(int serverSkt, client *clients) {
     clients->next = newNode;
 }
 
+void listen2son(int skt, char *buff) {
+    char tmp[MAX_BUFF];
+    char *pos = NULL;
+
+    memset(buff, 0, sizeof(buff));
+    memset(tmp, 0, sizeof(tmp));
+    while (pos == NULL) {
+        if (strlen(buff) + strlen(tmp) >= MAX_BUFF) {
+            printf("message too long\n");
+            exit(1);
+        }
+        strcat(buff, tmp);
+        memset(tmp, 0, sizeof(tmp));
+        if (recv(skt, tmp, MAX_BUFF, 0) < 0) {
+            printf("recv error\n");
+            exit(1);
+        }
+        pos = strchr(tmp, '$');
+    }
+    strncpy(tmp, tmp, strchr(tmp, '$') - tmp);
+    strcat(buff, tmp);
+}
+
 int main(int argc, char **argv) {
     int serverSkt;          // the listening socket
     int nfds;               // the max range of readfd for select
@@ -138,6 +162,7 @@ int main(int argc, char **argv) {
     client clients;         // a list of clients
     client *pClient;        // for iterating through client list
     client *tmpClient;      // temporary client pointer for deleting
+    char buff[MAX_BUFF];    // buff 2500
 
     // establishment
     serverSkt = serverInit();
@@ -154,7 +179,7 @@ int main(int argc, char **argv) {
         nfds = serverSkt;
         FD_ZERO(&readfds);
         FD_SET(serverSkt, &readfds);
-        for (pClient = clients->next; pClient != NULL; pClient = pClient->next) {
+        for (pClient = clients.next; pClient != NULL; pClient = pClient->next) {
             FD_SET(pClient->sktfd, &readfds);
             nfds = nfds < pClient->sktfd ? pClient->sktfd : nfds;
         }
@@ -164,6 +189,12 @@ int main(int argc, char **argv) {
         if (selectRes > 0) {    // selected something
             if (FD_ISSET(serverSkt, &readfds)) {
                 welcome(serverSkt, &clients);
+            }
+            for (pClient = clients.next; pClient != NULL; pClient = pClient->next) {
+                if (FD_ISSET(pClient->sktfd, &readfds)) {
+                    listen2son(pClient->sktfd, buff);
+                    printf("%s\n", buff);
+                }
             }
         }
     }

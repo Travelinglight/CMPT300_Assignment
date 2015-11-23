@@ -1,6 +1,8 @@
 *.DS_Store
 *.o
 lyrebird
+lyrebird.server
+lyrebird.client
 *.txt
 *.swp
 *.log

@@ -53,6 +53,20 @@ int callhome(char *hostaddr, unsigned short port) {
     return skt;
 }
 
+void speak2mom(int skt, char *content) {
+    int bytes = 0;
+    int i;
+
+    for (i = 0; (bytes <= 0) && (i < 30); i++) {
+        bytes = send(skt, content, strlen(content), 0);
+    }
+    if (i == 30) {
+        printf("message sent failed\n");
+        close(skt);
+        exit(1);
+    }
+}
+
 int main(int argc, char **argv) {
     int skt;
 
@@ -64,6 +78,7 @@ int main(int argc, char **argv) {
 
     // make connection to server
     skt = callhome(argv[1], (unsigned short)atoi(argv[2]));
-    while (1){};
+    speak2mom(skt, "Mom, how are you?$\n");
     close(skt);
+    return 0;
 }
