@@ -20,6 +20,7 @@
 #include <sys/types.h>
 #include <netdb.h>
 #include "gettime.h"
+#include "lyretalk.h"
 
 #define MAX_HOST_NAME 80
 #define MAX_IP_ADDR 16
@@ -31,6 +32,7 @@ typedef struct clientinfo {
     int sktfd;
     char ipaddr[MAX_IP_ADDR];
     struct clientinfo* next;
+    struct clientinfo* prev;
 } client;
 
 int serverInit() {
@@ -128,30 +130,21 @@ void welcome(int serverSkt, client *clients) {
     newNode->sktfd = t;
     strcpy(newNode->ipaddr, clientaddr);
     newNode->next = clients->next;
+    newNode->prev = clients;
+    if (clients->next != NULL)
+        clients->next->prev = newNode;
     clients->next = newNode;
 }
 
-void listen2son(int skt, char *buff) {
-    char tmp[MAX_BUFF];
-    char *pos = NULL;
+void dropClient(client **pClient) {
+    client *tmp;
 
-    memset(buff, 0, sizeof(buff));
-    memset(tmp, 0, sizeof(tmp));
-    while (pos == NULL) {
-        if (strlen(buff) + strlen(tmp) >= MAX_BUFF) {
-            printf("message too long\n");
-            exit(1);
-        }
-        strcat(buff, tmp);
-        memset(tmp, 0, sizeof(tmp));
-        if (recv(skt, tmp, MAX_BUFF, 0) < 0) {
-            printf("recv error\n");
-            exit(1);
-        }
-        pos = strchr(tmp, '$');
-    }
-    strncpy(tmp, tmp, strchr(tmp, '$') - tmp);
-    strcat(buff, tmp);
+    close((*pClient)->sktfd);
+    tmp = (*pClient)->prev->next = (*pClient)->next;
+    if ((*pClient)->next != NULL)
+        (*pClient)->next->prev = (*pClient)->prev;
+    free((*pClient));
+    (*pClient) = tmp;
 }
 
 int main(int argc, char **argv) {
@@ -171,6 +164,7 @@ int main(int argc, char **argv) {
     // client list initialization
     clients.sktfd = -1;
     clients.next = NULL;
+    clients.prev = NULL;
     strcpy(clients.ipaddr, "");
 
     // do something
@@ -187,20 +181,23 @@ int main(int argc, char **argv) {
         // check child process message
         selectRes = select(nfds + 1, &readfds, NULL, NULL, NULL);
         if (selectRes > 0) {    // selected something
-            if (FD_ISSET(serverSkt, &readfds)) {
-                welcome(serverSkt, &clients);
-            }
             for (pClient = clients.next; pClient != NULL; pClient = pClient->next) {
                 if (FD_ISSET(pClient->sktfd, &readfds)) {
-                    listen2son(pClient->sktfd, buff);
-                    printf("%s\n", buff);
+                    lyrelisten(pClient->sktfd, buff, MAX_BUFF);
+                    if (strcmp(buff, "bye") == 0)
+                        dropClient(&pClient);
+                    else
+                        lyrespeak(pClient->sktfd, buff);
                 }
+                if (pClient == NULL) break;
+            }
+            if (FD_ISSET(serverSkt, &readfds)) {
+                welcome(serverSkt, &clients);
             }
         }
     }
 
     // exiting
     close(serverSkt);
-
     return 0;
 }

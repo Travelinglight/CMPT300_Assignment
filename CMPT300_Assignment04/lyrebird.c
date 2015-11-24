@@ -20,11 +20,13 @@
 #include <sys/types.h>
 #include <netdb.h>
 #include "gettime.h"
+#include "lyretalk.h"
 
 #define MAX_HOST_NAME 80
 #define MAX_IP_ADDR 16
 #define MAX_TIME_STR 30
 #define MAX_CONNECT 1000
+#define MAX_BUFF 2500
 
 int callhome(char *hostaddr, unsigned short port) {
     char time_str[MAX_TIME_STR];
@@ -53,21 +55,8 @@ int callhome(char *hostaddr, unsigned short port) {
     return skt;
 }
 
-void speak2mom(int skt, char *content) {
-    int bytes = 0;
-    int i;
-
-    for (i = 0; (bytes <= 0) && (i < 30); i++) {
-        bytes = send(skt, content, strlen(content), 0);
-    }
-    if (i == 30) {
-        printf("message sent failed\n");
-        close(skt);
-        exit(1);
-    }
-}
-
 int main(int argc, char **argv) {
+    char buff[MAX_BUFF];
     int skt;
 
     // check for the arguments
@@ -78,7 +67,10 @@ int main(int argc, char **argv) {
 
     // make connection to server
     skt = callhome(argv[1], (unsigned short)atoi(argv[2]));
-    speak2mom(skt, "Mom, how are you?$\n");
+    lyrespeak(skt, "Mom, how are you?");
+    lyrelisten(skt, buff, MAX_BUFF);
+    lyrespeak(skt, "bye");
+    printf("%s\n", buff);
     close(skt);
     return 0;
 }
