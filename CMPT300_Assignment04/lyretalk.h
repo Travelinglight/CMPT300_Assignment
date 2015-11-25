@@ -17,7 +17,7 @@
 #include "gettime.h"
 #include "memwatch.h"
 
-void lyrespeak(int skt, char *buff);
-void lyrelisten(int skt, char *buff, int len);
+int lyrespeak(int skt, char *buff);
+int lyrelisten(int skt, char *buff, int len);
 
 #endif

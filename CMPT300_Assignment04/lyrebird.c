@@ -19,6 +19,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netdb.h>
+#include <signal.h>
 #include "gettime.h"
 #include "lyretalk.h"
 
@@ -28,6 +29,21 @@
 #define MAX_CONNECT 1000
 #define MAX_BUFF 2500
 
+/* global variables */
+char buff[MAX_BUFF];    // buffer
+int skt;                // socket fd to server
+int status = 0;         // decrypt status;
+
+
+/*------------------------------------------------- callhome ---------
+ *|  Function callhome
+ *|  Purpose: connect to server
+ *|  Parameters:
+ *|         char *hostaddr: the server ip address
+ *|         unsigned short port: the port the server is listening on
+.*|
+ *|  Returns:  The socket used to take to the server
+ **-------------------------------------------------------------------*/
 int callhome(char *hostaddr, unsigned short port) {
     char time_str[MAX_TIME_STR];
     struct sockaddr_in sa;
@@ -55,10 +71,18 @@ int callhome(char *hostaddr, unsigned short port) {
     return skt;
 }
 
-int main(int argc, char **argv) {
-    char buff[MAX_BUFF];
-    int skt;
+void safeCtrlC(int signum) {
+    lyrespeak(skt, "bye");
+    exit(0);
+}
 
+/*------------------------------------------------- main -------------
+ *|  Function main
+ *|  Purpose: Main function of client
+ *|  Parameters: none
+ *|  Returns:  execution status, 0 for normal, else for error
+ **-------------------------------------------------------------------*/
+int main(int argc, char **argv) {
     // check for the arguments
     if (argc != 3) {
         printf("input format:  ./lyrebird hostIP portnumber\n");
@@ -71,6 +95,7 @@ int main(int argc, char **argv) {
     lyrelisten(skt, buff, MAX_BUFF);
     lyrespeak(skt, "bye");
     printf("%s\n", buff);
+    sleep(10);
     close(skt);
     return 0;
 }

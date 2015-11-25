@@ -2,7 +2,7 @@
 
 #define MAX_BUFF 2500
 
-void lyrespeak(int skt, char *content) {
+int lyrespeak(int skt, char *content) {
     char buff[MAX_BUFF];
     int bytes = 0;
     int i;
@@ -14,12 +14,12 @@ void lyrespeak(int skt, char *content) {
     }
     if (i == 30) {
         printf("message sent failed\n");
-        close(skt);
-        exit(1);
+        return 1;
     }
+    return 0;
 }
 
-void lyrelisten(int skt, char *buff, int len) {
+int lyrelisten(int skt, char *buff, int len) {
     char tmp[MAX_BUFF];
     char *pos = NULL;
 
@@ -28,16 +28,17 @@ void lyrelisten(int skt, char *buff, int len) {
     while (pos == NULL) {
         if (strlen(buff) + strlen(tmp) >= len) {
             printf("message too long\n");
-            exit(1);
+            return 1;
         }
         strcat(buff, tmp);
         memset(tmp, 0, sizeof(tmp));
         if (recv(skt, tmp, MAX_BUFF, 0) < 0) {
             printf("recv error\n");
-            exit(1);
+            return 1;
         }
         pos = strchr(tmp, '$');
     }
     *pos = '\0';
     strcat(buff, tmp);
+    return 0;
 }
