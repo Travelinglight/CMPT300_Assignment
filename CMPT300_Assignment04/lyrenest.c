@@ -213,9 +213,6 @@ void dropClient(client **pClient) {
     (*pClient) = tmp;
 }
 
-void safeCtrlC(int signum) {
-}
-
 /*------------------------------------------------- main -------------
  *|  Function main
  *|  Purpose: Main function of server
@@ -234,7 +231,7 @@ int main(int argc, char **argv) {
     char time_str[MAX_TIME_STR];
     FILE *fp;               // file pointer to config file
 
-/*    // check arguments
+    // check arguments
     if (argc != 2) {
         printf("input format:\n./lyrebird [config file]\n");
         exit(1);
@@ -246,7 +243,7 @@ int main(int argc, char **argv) {
         gettime(time_str);
         printf("[%s] Server ID #%d error: file %s open failed\n", time_str, getpid(), argv[1]);
         exit(1);
-    }*/
+    }
 
     // establishment
     serverSkt = serverInit();

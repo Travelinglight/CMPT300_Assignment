@@ -12,10 +12,10 @@ all: lyrebird.server lyrebird.client
 CC=gcc
 CFLAGS=-I.
 
-DEPS = gettime.h lyretalk.h memwatch.h
-OBJ = memwatch.o lyretalk.o gettime.o lyrenest.o lyrebird.o
+DEPS = gettime.h decrypt.h lyreegg.h lyretalk.h memwatch.h
+OBJ = memwatch.o decrypt.o lyreegg.o lyretalk.o gettime.o lyrenest.o lyrebird.o
 sOBJ = memwatch.o lyretalk.o gettime.o lyrenest.o
-cOBJ = memwatch.o lyretalk.o gettime.o lyrebird.o
+cOBJ = memwatch.o decrypt.o lyreegg.o lyretalk.o gettime.o lyrebird.o
 
 %.o: %.c $(DEPS)
 	$(CC) -DMEMWATCH -DMW_STDIO -c -g -o $@ $< $(CFLAGS)
