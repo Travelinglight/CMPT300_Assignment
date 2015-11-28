@@ -72,6 +72,19 @@ int callhome(char *hostaddr, unsigned short port) {
     return skt;
 }
 
+/*------------------------------------------------- freemem ----------
+ *|  Function freemem
+ *|  Purpose: free memory before exiting
+ *|  Parameters:
+ *|         int nCore: the number of child processes
+ *|         int *pids: the array of child processes' pid
+ *|         int **p2cFD: the 2nd order array of pipe fd from parent
+ *|                     to children
+ *|         int **c2pFD: the 2nd order array of pipe fd from children
+ *|                     to parent
+.*|
+ *|  Returns:  void
+ **-------------------------------------------------------------------*/
 void freemem(int nCore, int *pids, int **p2cFD, int **c2pFD) {
     int i, j;
 
@@ -90,9 +103,25 @@ void freemem(int nCore, int *pids, int **p2cFD, int **c2pFD) {
     }
 }
 
-void killson(int pCP, int *alive, int **p2cFD, int **c2pFD, int *pids, char *buff, char *time_str) {
+/*------------------------------------------------- killson ---------
+ *|  Function killson
+ *|  Purpose: make a child process exit
+ *|  Parameters:
+ *|         int pCP: which child to exit
+ *|         int *alive: the number of alive children
+ *|         int **p2cFD: the 2nd order array of pipe fd from parent
+ *|                     to children
+ *|         int **c2pFD: the 2nd order array of pipe fd from children
+ *|                     to parent
+ *|         int *pids: the array of child processes' pid
+ *|         char *buff: buffer used for communication
+.*|
+ *|  Returns:  void
+ **-------------------------------------------------------------------*/
+void killson(int pCP, int *alive, int **p2cFD, int **c2pFD, int *pids, char *buff) {
     int state;
     pid_t pid;              // for waiting
+    char time_str[MAX_TIME_STR];
 
     // close pipes
     close(p2cFD[pCP][1]);
@@ -113,19 +142,13 @@ void killson(int pCP, int *alive, int **p2cFD, int **c2pFD, int *pids, char *buf
     (*alive)--;
 }
 
-void safeCtrlC(int signum) {
-    if (state == 0)
-        lyrespeak(skt, "bye");
-    else
-        lyrespeak(skt, "sorry");
-    close(skt);
-    exit(0);
-}
-
 /*------------------------------------------------- main -------------
  *|  Function main
  *|  Purpose: Main function of client
- *|  Parameters: none
+ *|  Parameters: 
+ *|         int argc: the number of arguments
+ *|         char ** argv: the arguments list
+ *|
  *|  Returns:  execution state, 0 for normal, else for error
  **-------------------------------------------------------------------*/
 int main(int argc, char **argv) {
@@ -238,7 +261,6 @@ int main(int argc, char **argv) {
                 // print status
                 if (state == 0) {
                     gettime(time_str);
-                    printf("[%s] Process ID #%d decrypted %s successfully.\n", time_str, getpid(), encpt);
                     sprintf(buff, "successfully decrypted %s in process %d.", encpt, getpid());
                 }
                 else if (state == 1) {
@@ -276,6 +298,7 @@ int main(int argc, char **argv) {
 
     // make connection to server
     skt = callhome(argv[1], (unsigned short)atoi(argv[2]));
+    flag = 1;   // flag=1 means tasks available
 
     // start dispatching jobs
     while (alive > 0) {
@@ -298,19 +321,16 @@ int main(int argc, char **argv) {
                 if (FD_ISSET(c2pFD[i][0], &readfds)) {
                     read(c2pFD[i][0], buff, MAX_BUFF);
                     if (strcmp(buff, "kill me!") == 0) {    // child process requires to be killed
-                        killson(i, &alive, p2cFD, c2pFD, pids, buff, time_str);
+                        killson(i, &alive, p2cFD, c2pFD, pids, buff);
                     }
                     else {
                         // ask for task
-                        if (strcmp(buff, "ready") == 0) // first time
-                            lyrespeak(skt, "ready");
-                        else                            // success / fail
-                            lyrespeak(skt, buff);
+                        lyrespeak(skt, buff);   // ready or success or failure
 
                         // receive task and dispatch it
                         lyrelisten(skt, buff, MAX_BUFF);
-                        if (strcmp(buff, "bye") == 0)
-                            killson(i, &alive, p2cFD, c2pFD, pids, buff, time_str);
+                        if (strcmp(buff, "goodjob") == 0)
+                            killson(i, &alive, p2cFD, c2pFD, pids, buff);
                         else
                             write(p2cFD[i][1], buff, strlen(buff) + 1);
                     }
@@ -319,6 +339,10 @@ int main(int argc, char **argv) {
         }
     }
 
+    lyrespeak(skt, "bye");   // ready or success or failure
     close(skt);
+    freemem(nCore, pids, p2cFD, c2pFD);
+    gettime(time_str);
+    printf("[%s] lyrebird client: PID %d completed its tasks and is exiting successfully.\n", time_str, getpid());
     return 0;
 }

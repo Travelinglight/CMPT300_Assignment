@@ -28,6 +28,7 @@
 #define MAX_TIME_STR 30
 #define MAX_CONNECT 1000
 #define MAX_BUFF 2500
+#define MAX_FNAME 1250
 
 typedef struct clientinfo {
     int sktfd;
@@ -54,51 +55,44 @@ int serverInit() {
 
     // get ip address
     hostaddr = (char*)calloc(MAX_IP_ADDR + 1, sizeof(char));
-    if (getifaddrs(&ifaddr) == -1) {
-        printf("getifaddrs failed\n");
-        exit(1);
-    }
+    if (getifaddrs(&ifaddr) == -1)
+        return -1;      // get address failed
     for (p = ifaddr; p != NULL; p = p->ifa_next) {  // search the chain to find the ip address
         if (p->ifa_addr == NULL)
             continue;
         err = getnameinfo(p->ifa_addr, sizeof(struct sockaddr_in), hostaddr, NI_MAXHOST, NULL, 0, NI_NUMERICHOST);
         if (((strcmp(p->ifa_name, "wlan0") == 0) || (strcmp(p->ifa_name, "eth0") == 0)) && (p->ifa_addr->sa_family == AF_INET)) {
-            if (err) {
-                printf("getnameinfo failed\n");
-                exit(1);
-            }
+            if (err)
+                return -2;  // getnameinfo failed
             break;
         }
     }
-    if (strlen(hostaddr) == 0) {
-        printf("get ip address failed\n");
-        exit(1);
-    }
+    if (strlen(hostaddr) == 0)
+        return -3;  // get ip address failed
 
     memset(&sa, 0, sizeof(struct sockaddr_in)); // clear memory
     gethostname(lhostname, MAX_HOST_NAME);       // get local host name
     hentry = gethostbyname(lhostname);          // get host entry from name
-    if (hentry == NULL) {
-        return -1;
-    }
+    if (hentry == NULL)
+        return -4;  // get host by name failed
     sa.sin_family = hentry->h_addrtype;         // set address family
     sa.sin_addr.s_addr = inet_addr(hostaddr);   // set ip address
 
     // start a socket
     if ((skt = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        return -1;
+        return -5;  // socket init failed
     }
     // set file discriptor nonblock
     fcntl(skt, F_SETFL, O_NONBLOCK);
     // bind address to the socket
     if (bind(skt, (struct sockaddr*)&sa, sizeof(struct sockaddr_in)) < 0) {
         close(skt);
-        return -1;
+        return -6;  // bind socket and address failed
     }
     // listen for connections
     if (listen(skt, MAX_CONNECT)) {
         close(skt);
-        return -1;
+        return -7;  // socket listen error
     }
 
     free(hostaddr);
@@ -132,10 +126,11 @@ void showServer(int skt) {
  *|         int serverSKt: the server listening socket;
  *|         client *clients: the head of client list;
  *|         FILE *cfp: the config file pointer;
+ *|         FILE *lfp: the log file pointer;
 .*|
  *|  Returns:  void
  **-------------------------------------------------------------------*/
-void destruct(int serverSkt, client *clients, FILE *cfp) {
+void destruct(int serverSkt, client *clients, FILE *cfp, FILE *lfp) {
     client *tmp;
     while (clients->next != NULL) {
         tmp = clients->next;
@@ -147,6 +142,9 @@ void destruct(int serverSkt, client *clients, FILE *cfp) {
     if (cfp != NULL) {
         fclose(cfp);
     }
+    if (lfp != NULL) {
+        fclose(lfp);
+    }
 }
 
 /*------------------------------------------------- welcome ----------
@@ -156,10 +154,11 @@ void destruct(int serverSkt, client *clients, FILE *cfp) {
  *|  Parameters:
  *|         int serverSkt: the server socket that listens on a port;
  *|         client *clients: the head of the client list;
+ *|         FILE *lfp: the log file pointer;
 .*|
  *|  Returns:  int status, 0 for success, else for error
  **-------------------------------------------------------------------*/
-int welcome(int serverSkt, client *clients) {
+int welcome(int serverSkt, client *clients, FILE *lfp) {
     int t;
     struct sockaddr_in sa;              // socket address
     int len = sizeof(struct sockaddr);
@@ -169,15 +168,13 @@ int welcome(int serverSkt, client *clients) {
 
     // accept connection
     t = accept(serverSkt, (struct sockaddr*)&sa, &len);
-    if (t < 0) {
-        printf("Accept error\n");
+    if (t < 0)
         return 1;
-    }
 
     // print client info
     inet_ntop(AF_INET, &(sa.sin_addr), clientaddr, MAX_IP_ADDR);
     gettime(time_str);
-    printf("[%s] Successfully connected to lyrebird client %s.\n", time_str, clientaddr);
+    fprintf(lfp, "[%s] Successfully connected to lyrebird client %s.\n", time_str, clientaddr);
 
     // add to linked list
     newNode = (client*)malloc(sizeof(client));
@@ -199,13 +196,21 @@ int welcome(int serverSkt, client *clients) {
  *|  Parameters:
  *|         client **pClient: the 2nd order pointer to the client that
 .*|                 is to be deleted.
+ *|         FILE *lfp: the log file pointer;
 .*|
  *|  Returns:  void
  **-------------------------------------------------------------------*/
-void dropClient(client **pClient) {
+void dropClient(client **pClient, FILE *lfp) {
     client *tmp;
+    char time_str[MAX_TIME_STR];
 
     close((*pClient)->sktfd);
+
+    // print disconnect info
+    gettime(time_str);
+    fprintf(lfp, "[%s] lyrebird client %s has disconnected expectedly.\n", time_str, (*pClient)->ipaddr);
+
+    // drop from client list
     tmp = (*pClient)->prev->next = (*pClient)->next;
     if ((*pClient)->next != NULL)
         (*pClient)->next->prev = (*pClient)->prev;
@@ -216,7 +221,10 @@ void dropClient(client **pClient) {
 /*------------------------------------------------- main -------------
  *|  Function main
  *|  Purpose: Main function of server
- *|  Parameters: none
+ *|  Parameters:
+ *|         int argc: the number of arguments
+ *|         char ** argv: the arguments list
+ *|
  *|  Returns:  execution status, 0 for normal, else for error
  **-------------------------------------------------------------------*/
 int main(int argc, char **argv) {
@@ -228,13 +236,15 @@ int main(int argc, char **argv) {
     client *pClient;        // for iterating through client list
     client *tmpClient;      // temporary client pointer for deleting
     char buff[MAX_BUFF];    // buff 2500
+    char encpt[MAX_FNAME];  // file name of encrypted tweets
     char time_str[MAX_TIME_STR];
     FILE *cfp;              // file pointer to config file
+    FILE *lfp;              // file pointer to log file
     int flag;               // the flag for server to quit
 
     // check arguments
-    if (argc != 2) {
-        printf("input format:\n./lyrebird [config file]\n");
+    if (argc != 3) {
+        printf("input format:  ./lyrebird [config file] [log file]\n");
         exit(1);
     }
 
@@ -245,9 +255,44 @@ int main(int argc, char **argv) {
         printf("[%s] Server ID #%d error: file %s open failed\n", time_str, getpid(), argv[1]);
         exit(1);
     }
+    lfp = fopen(argv[2], "a");   // open log file
+    if (lfp == NULL) {
+        gettime(time_str);
+        printf("[%s] Server ID #%d error: file %s open failed\n", time_str, getpid(), argv[2]);
+        exit(1);
+    }
 
     // establishment
-    serverSkt = serverInit();
+    if ((serverSkt = serverInit()) < 0) {
+        switch(serverSkt) {
+            case -1:
+                sprintf(buff, "getifaddrs failed");
+                break;
+            case -2:
+                sprintf(buff, "getnameinfo failed");
+                break;
+            case -3:
+                sprintf(buff, "get ip address failed");
+                break;
+            case -4:
+                sprintf(buff, "gethostbyname failed");
+                break;
+            case -5:
+                sprintf(buff, "socket init failed");
+                break;
+            case -6:
+                sprintf(buff, "bind socket and address failed");
+                break;
+            case -7:
+                sprintf(buff, "socket listen error");
+                break;
+            default:
+                sprintf(buff, "unknown error");
+        }
+        gettime(time_str);
+        printf("[%s] Server ID #%d error: %s.\n", time_str, getpid(), buff);
+        exit(1);
+    }
     showServer(serverSkt);
 
     // client list initialization
@@ -258,7 +303,7 @@ int main(int argc, char **argv) {
 
     // dispatching jobs
     flag = 1;
-    while (flag) {
+    while (flag || (clients.next != NULL)) {
         // setup readfds
         nfds = serverSkt;
         FD_ZERO(&readfds);
@@ -277,50 +322,53 @@ int main(int argc, char **argv) {
                     // receive from client
                     if (lyrelisten(pClient->sktfd, buff, MAX_BUFF)) {
                         gettime(time_str);
-                        printf("[%s] Server ID #%d error: receive from %s failed\n", time_str, getpid(), pClient->ipaddr);
+                        fprintf(lfp, "[%s] Server ID #%d error: receive from %s failed\n", time_str, getpid(), pClient->ipaddr);
                         lyrespeak(pClient->sktfd, "bye");
-                        dropClient(&pClient);
-                        exit(1);
+                        dropClient(&pClient, lfp);
                     }
                     if (strcmp(buff, "bye") == 0)   // client said good bye
-                        dropClient(&pClient);
+                        dropClient(&pClient, lfp);
                     else {                          // client ask for jobs
                         if (strcmp(buff, "ready") != 0) {  // success / fail
                             gettime(time_str);
-                            sprintf(buff, "[%s] The lyrebird client %s has", time_str, pClient->ipaddr);
+                            fprintf(lfp, "[%s] The lyrebird client %s has %s\n", time_str, pClient->ipaddr, buff);
                         }
 
                         // get task
-                        if (!(fgets(buff, MAX_BUFF, cfp)))
+                        if ((!flag) || (!(fgets(buff, MAX_BUFF, cfp)))) {
                             strcpy(buff, "");
-
-                        // no tasks to be assigned
-                        if (strlen(buff) == 0) {
-                            lyrespeak(pClient->sktfd, "bye");
-                            dropClient(&pClient);
-                            if (clients.next == NULL)
-                                flag = 0;
-                            continue;
+                            flag = 0;
                         }
 
-                        // assign the task
-                        if (lyrespeak(pClient->sktfd, buff)) {
-                            gettime(time_str);
-                            printf("[%s] Server ID #%d error: speak to client %s failed\n", time_str, getpid(), pClient->ipaddr);
-                            dropClient(&pClient);
+                        // assign task
+                        if (strlen(buff) == 0)  // no tasks to be assigned
+                            lyrespeak(pClient->sktfd, "goodjob");
+                        else {                  // assign the task
+                            if (lyrespeak(pClient->sktfd, buff)) {  // speak fail
+                                gettime(time_str);
+                                fprintf(lfp, "[%s] Server ID #%d error: speak to client %s failed\n", time_str, getpid(), pClient->ipaddr);
+                                dropClient(&pClient, lfp);
+                            }
+                            else {  // speak succeed
+                                memset(encpt, 0, MAX_FNAME);
+                                strncpy(encpt, buff, strchr(buff, ' ') - buff);
+                                gettime(time_str);
+                                fprintf(lfp, "[%s] The lyrebird client %s has been given the task of decrypting %s.\n", time_str, pClient->ipaddr, encpt);
+                            }
                         }
                     }
                 }
                 if (pClient == NULL) break;
             }
             if (FD_ISSET(serverSkt, &readfds)) {
-                if (welcome(serverSkt, &clients))
-                    destruct(serverSkt, &clients, cfp);
+                welcome(serverSkt, &clients, lfp);
             }
         }
     }
 
     // exiting
-    destruct(serverSkt, &clients, cfp);
+    destruct(serverSkt, &clients, cfp, lfp);
+    gettime(time_str);
+    printf("[%s] lyrebird server: PID %d completed its tasks and is exiting successfully.\n", time_str, getpid());
     return 0;
 }
