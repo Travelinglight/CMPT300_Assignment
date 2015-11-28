@@ -12,10 +12,8 @@ int lyrespeak(int skt, char *content) {
     for (i = 0; (bytes <= 0) && (i < 30); i++) {
         bytes = send(skt, buff, strlen(buff), 0);
     }
-    if (i == 30) {
-        printf("message sent failed\n");
+    if (i == 30)
         return 1;
-    }
     return 0;
 }
 
@@ -27,13 +25,11 @@ int lyrelisten(int skt, char *buff, int len) {
     memset(tmp, 0, sizeof(tmp));
     while (pos == NULL) {
         if (strlen(buff) + strlen(tmp) >= len) {
-            printf("message too long\n");
             return 1;
         }
         strcat(buff, tmp);
         memset(tmp, 0, sizeof(tmp));
         if (recv(skt, tmp, MAX_BUFF, 0) < 0) {
-            printf("recv error\n");
             return 1;
         }
         pos = strchr(tmp, '$');

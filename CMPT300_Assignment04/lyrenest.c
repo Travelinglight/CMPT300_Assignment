@@ -131,11 +131,11 @@ void showServer(int skt) {
  *|  Parameters:
  *|         int serverSKt: the server listening socket;
  *|         client *clients: the head of client list;
- *|         FILE *fp: the config file pointer;
+ *|         FILE *cfp: the config file pointer;
 .*|
  *|  Returns:  void
  **-------------------------------------------------------------------*/
-void destruct(int serverSkt, client *clients, FILE *fp) {
+void destruct(int serverSkt, client *clients, FILE *cfp) {
     client *tmp;
     while (clients->next != NULL) {
         tmp = clients->next;
@@ -144,8 +144,8 @@ void destruct(int serverSkt, client *clients, FILE *fp) {
         free(tmp);
     }
     close(serverSkt);
-    if (fp != NULL) {
-        fclose(fp);
+    if (cfp != NULL) {
+        fclose(cfp);
     }
 }
 
@@ -229,7 +229,8 @@ int main(int argc, char **argv) {
     client *tmpClient;      // temporary client pointer for deleting
     char buff[MAX_BUFF];    // buff 2500
     char time_str[MAX_TIME_STR];
-    FILE *fp;               // file pointer to config file
+    FILE *cfp;              // file pointer to config file
+    int flag;               // the flag for server to quit
 
     // check arguments
     if (argc != 2) {
@@ -238,8 +239,8 @@ int main(int argc, char **argv) {
     }
 
     // open config file
-    fp = fopen(argv[1], "r");   // open config file
-    if (fp == NULL) {
+    cfp = fopen(argv[1], "r");   // open config file
+    if (cfp == NULL) {
         gettime(time_str);
         printf("[%s] Server ID #%d error: file %s open failed\n", time_str, getpid(), argv[1]);
         exit(1);
@@ -255,8 +256,9 @@ int main(int argc, char **argv) {
     clients.prev = NULL;
     strcpy(clients.ipaddr, "");
 
-    // do something
-    while (1) {
+    // dispatching jobs
+    flag = 1;
+    while (flag) {
         // setup readfds
         nfds = serverSkt;
         FD_ZERO(&readfds);
@@ -271,16 +273,41 @@ int main(int argc, char **argv) {
         if (selectRes > 0) {    // selected something
             for (pClient = clients.next; pClient != NULL; pClient = pClient->next) {
                 if (FD_ISSET(pClient->sktfd, &readfds)) {
+
+                    // receive from client
                     if (lyrelisten(pClient->sktfd, buff, MAX_BUFF)) {
-                        destruct(serverSkt, &clients, fp);
+                        gettime(time_str);
+                        printf("[%s] Server ID #%d error: receive from %s failed\n", time_str, getpid(), pClient->ipaddr);
+                        lyrespeak(pClient->sktfd, "bye");
+                        dropClient(&pClient);
                         exit(1);
                     }
-                    if (strcmp(buff, "bye") == 0)
+                    if (strcmp(buff, "bye") == 0)   // client said good bye
                         dropClient(&pClient);
-                    else {
+                    else {                          // client ask for jobs
+                        if (strcmp(buff, "ready") != 0) {  // success / fail
+                            gettime(time_str);
+                            sprintf(buff, "[%s] The lyrebird client %s has", time_str, pClient->ipaddr);
+                        }
+
+                        // get task
+                        if (!(fgets(buff, MAX_BUFF, cfp)))
+                            strcpy(buff, "");
+
+                        // no tasks to be assigned
+                        if (strlen(buff) == 0) {
+                            lyrespeak(pClient->sktfd, "bye");
+                            dropClient(&pClient);
+                            if (clients.next == NULL)
+                                flag = 0;
+                            continue;
+                        }
+
+                        // assign the task
                         if (lyrespeak(pClient->sktfd, buff)) {
-                            destruct(serverSkt, &clients, fp);
-                            exit(1);
+                            gettime(time_str);
+                            printf("[%s] Server ID #%d error: speak to client %s failed\n", time_str, getpid(), pClient->ipaddr);
+                            dropClient(&pClient);
                         }
                     }
                 }
@@ -288,12 +315,12 @@ int main(int argc, char **argv) {
             }
             if (FD_ISSET(serverSkt, &readfds)) {
                 if (welcome(serverSkt, &clients))
-                    destruct(serverSkt, &clients, fp);
+                    destruct(serverSkt, &clients, cfp);
             }
         }
     }
 
     // exiting
-    destruct(serverSkt, &clients, fp);
+    destruct(serverSkt, &clients, cfp);
     return 0;
 }
