@@ -257,6 +257,10 @@ int main(int argc, char **argv) {
         printf("[%s] Server ID #%d error: file %s open failed\n", time_str, getpid(), argv[2]);
         exit(1);
     }
+    else {
+        gettime(time_str);
+	fprintf(lfp, "\n\n==========================================[%s]============================================\n\n", time_str);
+    }
 
     // establishment
     if ((serverSkt = serverInit()) < 0) {
