@@ -313,7 +313,7 @@ int main(int argc, char **argv) {
             nfds = nfds < pClient->sktfd ? pClient->sktfd : nfds;
         }
 
-        // check child process message
+        // check sockets message
         selectRes = select(nfds + 1, &readfds, NULL, NULL, NULL);
         if (selectRes > 0) {    // selected something
             for (pClient = clients.next; pClient != NULL; pClient = pClient->next) {
@@ -321,10 +321,9 @@ int main(int argc, char **argv) {
 
                     // receive from client
                     if (lyrelisten(pClient->sktfd, buff, MAX_BUFF)) {
-                        gettime(time_str);
-                        fprintf(lfp, "[%s] Server ID #%d error: receive from %s failed\n", time_str, getpid(), pClient->ipaddr);
                         lyrespeak(pClient->sktfd, "bye");
                         dropClient(&pClient, lfp);
+                        continue;
                     }
                     if (strcmp(buff, "bye") == 0)   // client said good bye
                         dropClient(&pClient, lfp);
@@ -341,7 +340,7 @@ int main(int argc, char **argv) {
                         }
 
                         // assign task
-                        if (strlen(buff) == 0)  // no tasks to be assigned
+                        if (!flag)  // no tasks to be assigned
                             lyrespeak(pClient->sktfd, "goodjob");
                         else {                  // assign the task
                             if (lyrespeak(pClient->sktfd, buff)) {  // speak fail
@@ -350,9 +349,9 @@ int main(int argc, char **argv) {
                                 dropClient(&pClient, lfp);
                             }
                             else {  // speak succeed
+                                gettime(time_str);
                                 memset(encpt, 0, MAX_FNAME);
                                 strncpy(encpt, buff, strchr(buff, ' ') - buff);
-                                gettime(time_str);
                                 fprintf(lfp, "[%s] The lyrebird client %s has been given the task of decrypting %s.\n", time_str, pClient->ipaddr, encpt);
                             }
                         }
