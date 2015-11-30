@@ -71,11 +71,7 @@ int serverInit() {
         return -3;  // get ip address failed
 
     memset(&sa, 0, sizeof(struct sockaddr_in)); // clear memory
-    gethostname(lhostname, MAX_HOST_NAME);       // get local host name
-    hentry = gethostbyname(lhostname);          // get host entry from name
-    if (hentry == NULL)
-        return -4;  // get host by name failed
-    sa.sin_family = hentry->h_addrtype;         // set address family
+    sa.sin_family = AF_INET;         // set address family
     sa.sin_addr.s_addr = inet_addr(hostaddr);   // set ip address
 
     // start a socket
