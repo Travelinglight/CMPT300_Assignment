@@ -122,7 +122,55 @@ void createPipes(int nCore, int *pids, int **p2cFD, int **c2pFD) {
 }
 
 
-void createChildren(int nCore, int *pids, int **p2cFD, int **c2pFD) {
+void childRoutine(int nCore, int pCP, int **p2cFD, int **c2pFD, char *buff, char *encpt, char *decpt) {
+    int i;
+    int nBytes;
+    int state = -1;
+    char time_str[MAX_TIME_STR];
+
+    // close unnecessary pipes
+    for (i = 0; i < nCore; i++) {
+        close(p2cFD[i][1]);
+        if (i != pCP)
+            close(p2cFD[i][0]);
+    }
+    for (i = 0; i < nCore; i++) {
+        close(c2pFD[i][0]);
+        if (i != pCP)
+            close(c2pFD[i][1]);
+    }
+
+    // write to parent process
+    sprintf(buff, "ready");
+    write(c2pFD[pCP][1], buff, strlen(buff) + 1);
+
+    // read from pipe
+    while ((nBytes = read(p2cFD[pCP][0], buff, MAX_BUFF)) != 0) {
+        if (buff[strlen(buff) - 1] == '\n')
+            buff[strlen(buff) - 1] = '\0';
+
+        // get input/output file name
+        memset(encpt, 0, MAX_FNAME);
+        memset(decpt, 0, MAX_FNAME);
+        strncpy(encpt, buff, strchr(buff, ' ') - buff);
+        strcpy(decpt, strchr(buff, ' ') + 1);
+        state = lyreegg(encpt, decpt);
+
+        // print status
+        if (state == 0) {
+            gettime(time_str);
+            sprintf(buff, "successfully decrypted %s in process %d.", encpt, getpid());
+        }
+        else if (state == 1) {
+            sprintf(buff, "encountered an error: Unable to open file %s in process %d.", encpt, getpid());
+        }
+        else if (state == 2) {
+            sprintf(buff, "encountered an error: Unable to open file %s in process %d.", decpt, getpid());
+        }
+
+        // write to parent process
+        write(c2pFD[pCP][1], buff, strlen(buff) + 1);
+    }
 }
 
 /*------------------------------------------------- killson ---------
@@ -189,8 +237,6 @@ int main(int argc, char **argv) {
     int selectRes;          // result of select
     int nfds;               // the max range of readfd for select
     fd_set readfds;         // the set of read fd for select
-    int nBytes;             // number of bytes read from pipe
-    int state = -1;         // decrypt state;
     int skt;                // socket fd to server
 
     // check for the arguments
@@ -232,56 +278,13 @@ int main(int argc, char **argv) {
     // create all child processes
     for (i = 0; i < nCore; i++) {
 
-        // indicate it is the ith child process now
-        pCP = i;
+        pCP = i;        // indicate it is the ith child process now
 
         // fork child process
         c_pid = fork();
         if (c_pid == 0) {   // in child process
-
-            // close unnecessary pipes
-            for (i = 0; i < nCore; i++) {
-                close(p2cFD[i][1]);
-                if (i != pCP)
-                    close(p2cFD[i][0]);
-            }
-            for (i = 0; i < nCore; i++) {
-                close(c2pFD[i][0]);
-                if (i != pCP)
-                    close(c2pFD[i][1]);
-            }
-
-            // write to parent process
-            sprintf(buff, "ready");
-            nBytes = write(c2pFD[pCP][1], buff, strlen(buff) + 1);
-
-            // read from pipe
-            while ((nBytes = read(p2cFD[pCP][0], buff, MAX_BUFF)) != 0) {
-                if (buff[strlen(buff) - 1] == '\n')
-                    buff[strlen(buff) - 1] = '\0';
-
-                // get input/output file name
-                memset(encpt, 0, MAX_FNAME);
-                memset(decpt, 0, MAX_FNAME);
-                strncpy(encpt, buff, strchr(buff, ' ') - buff);
-                strcpy(decpt, strchr(buff, ' ') + 1);
-                state = lyreegg(encpt, decpt);
-
-                // print status
-                if (state == 0) {
-                    gettime(time_str);
-                    sprintf(buff, "successfully decrypted %s in process %d.", encpt, getpid());
-                }
-                else if (state == 1) {
-                    sprintf(buff, "encountered an error: Unable to open file %s in process %d.", encpt, getpid());
-                }
-                else if (state == 2) {
-                    sprintf(buff, "encountered an error: Unable to open file %s in process %d.", decpt, getpid());
-                }
-
-                // write to parent process
-                nBytes = write(c2pFD[pCP][1], buff, strlen(buff) + 1);
-            }
+            // do things
+            childRoutine(nCore, pCP, p2cFD, c2pFD, buff, encpt, decpt);
 
             // close pipe
             close(p2cFD[pCP][0]);

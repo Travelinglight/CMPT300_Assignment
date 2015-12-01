@@ -24,7 +24,7 @@
 #include "lyretalk.h"
 
 #define MAX_HOST_NAME 80
-#define MAX_IP_ADDR 16
+#define MAX_IP_ADDR 20
 #define MAX_TIME_STR 30
 #define MAX_CONNECT 1000
 #define MAX_BUFF 2500
@@ -44,7 +44,7 @@ typedef struct clientinfo {
  *|  Returns:  The socket used to listen on a port
  **-------------------------------------------------------------------*/
 int serverInit() {
-    char *hostaddr;
+    char hostaddr[MAX_IP_ADDR];         // local ip address
     int err;
     struct ifaddrs *ifaddr, *p;
 
@@ -54,7 +54,6 @@ int serverInit() {
     struct hostent *hentry;             // host entry
 
     // get ip address
-    hostaddr = (char*)calloc(MAX_IP_ADDR + 1, sizeof(char));
     if (getifaddrs(&ifaddr) == -1)
         return -1;      // get address failed
     for (p = ifaddr; p != NULL; p = p->ifa_next) {  // search the chain to find the ip address
@@ -91,7 +90,6 @@ int serverInit() {
         return -7;  // socket listen error
     }
 
-    free(hostaddr);
     return skt;
 }
 
