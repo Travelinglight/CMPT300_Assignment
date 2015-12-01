@@ -122,18 +122,22 @@ void allocmem(int nCore, int **pids, int ***p2cFD, int ***c2pFD) {
     *pids = (int*)calloc(nCore, sizeof(int));
     // initialize file descriptors;
     *p2cFD = (int**)calloc(nCore, sizeof(int*));
-    for (i = 0; i < nCore; i++)
+    for (i = 0; i < nCore; i++) {
+        (*p2cFD)[i] = NULL;
         (*p2cFD)[i] = (int*)calloc(2, sizeof(int));
+    }
     *c2pFD = (int**)calloc(nCore, sizeof(int*));
-    for (i = 0; i < nCore; i++)
+    for (i = 0; i < nCore; i++) {
+        (*c2pFD)[i] = NULL;
         (*c2pFD)[i] = (int*)calloc(2, sizeof(int));
+    }
 
     // check memory allocation error
     flag = 1;
-    if (!(pids && p2cFD && c2pFD))
+    if (!((*pids) && (*p2cFD) && (*c2pFD)))
         flag = 0;
     for (i = 0; i < nCore; i++) {
-        if (!(p2cFD[i] && c2pFD[i]))
+        if (!((*p2cFD)[i] && (*c2pFD)[i]))
             flag = 0;
     }
     if (!flag) {
