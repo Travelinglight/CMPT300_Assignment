@@ -2,6 +2,15 @@
 
 #define MAX_BUFF 2500
 
+/*------------------------------------------------- lyrespeak --------
+ *|  Function lyrespeak
+ *|  Purpose:  send content through socket
+ *|  Parameters:
+ *|         int skt: the socket in connection
+ *|         char *content: the content one wants to send.
+.*|
+ *|  Returns:  int: state, 0 for success and else for failure
+ **-------------------------------------------------------------------*/
 int lyrespeak(int skt, char *content) {
     char buff[MAX_BUFF];
     int bytes = 0;
@@ -17,6 +26,16 @@ int lyrespeak(int skt, char *content) {
     return 0;
 }
 
+/*------------------------------------------------- lyrelisten -------
+ *|  Function lyrelisten
+ *|  Purpose:  receive from a socket
+ *|  Parameters:
+ *|         int skt: the socket in connection
+ *|         char *buff: the buffer used to store received content
+ *|         int len: the capacity of the buffer
+.*|
+ *|  Returns:  int: state, 0 for success and else for failure
+ **-------------------------------------------------------------------*/
 int lyrelisten(int skt, char *buff, int len) {
     char tmp[MAX_BUFF];
     char *pos = NULL;

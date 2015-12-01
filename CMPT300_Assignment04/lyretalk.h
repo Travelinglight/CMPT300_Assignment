@@ -17,7 +17,27 @@
 #include "gettime.h"
 #include "memwatch.h"
 
+/*------------------------------------------------- lyrespeak --------
+ *|  Function lyrespeak
+ *|  Purpose:  send content through socket
+ *|  Parameters:
+ *|         int skt: the socket in connection
+ *|         char *content: the content one wants to send.
+.*|
+ *|  Returns:  int: state, 0 for success and else for failure
+ **-------------------------------------------------------------------*/
 int lyrespeak(int skt, char *buff);
+
+/*------------------------------------------------- lyrelisten -------
+ *|  Function lyrelisten
+ *|  Purpose:  receive from a socket
+ *|  Parameters:
+ *|         int skt: the socket in connection
+ *|         char *buff: the buffer used to store received content
+ *|         int len: the capacity of the buffer
+.*|
+ *|  Returns:  int: state, 0 for success and else for failure
+ **-------------------------------------------------------------------*/
 int lyrelisten(int skt, char *buff, int len);
 
 #endif
