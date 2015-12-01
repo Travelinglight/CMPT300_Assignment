@@ -251,7 +251,7 @@ int main(int argc, char **argv) {
         printf("[%s] Server ID #%d error: file %s open failed\n", time_str, getpid(), argv[1]);
         exit(1);
     }
-    lfp = fopen(argv[2], "a");   // open log file
+    lfp = fopen(argv[2], "w");   // open log file
     if (lfp == NULL) {
         gettime(time_str);
         printf("[%s] Server ID #%d error: file %s open failed\n", time_str, getpid(), argv[2]);
