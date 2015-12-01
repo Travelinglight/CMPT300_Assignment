@@ -57,10 +57,11 @@ int serverInit() {
     if (getifaddrs(&ifaddr) == -1)
         return -1;      // get address failed
     for (p = ifaddr; p != NULL; p = p->ifa_next) {  // search the chain to find the ip address
-        if (p->ifa_addr == NULL)
+        if ((p->ifa_addr == NULL) || (p->ifa_addr->sa_family != AF_INET))
             continue;
+        memset(hostaddr, 0, MAX_IP_ADDR * sizeof(char));
         err = getnameinfo(p->ifa_addr, sizeof(struct sockaddr_in), hostaddr, NI_MAXHOST, NULL, 0, NI_NUMERICHOST);
-        if (((strcmp(p->ifa_name, "wlan0") == 0) || (strcmp(p->ifa_name, "eth0") == 0)) && (p->ifa_addr->sa_family == AF_INET)) {
+        if ((strcmp(hostaddr, "127.0.0.1") != 0) && (strcmp(hostaddr, "0.0.0.0") != 0)) {
             if (err)
                 return -2;  // getnameinfo failed
             break;

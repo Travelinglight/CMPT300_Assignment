@@ -31,6 +31,8 @@
 #define MAX_BUFF 2500
 #define MAX_FNAME 1250
 
+
+
 /*------------------------------------------------- callhome ---------
  *|  Function callhome
  *|  Purpose: connect to server
@@ -95,6 +97,37 @@ void freemem(int nCore, int *pids, int **p2cFD, int **c2pFD) {
             free(c2pFD[i]);
         }
         free(c2pFD);
+    }
+}
+
+void allocmem(int nCore, int **pids, int ***p2cFD, int ***c2pFD) {
+    int i;
+    int flag;
+    char time_str[MAX_TIME_STR];
+
+    // initialize the pid array
+    *pids = (int*)calloc(nCore, sizeof(int));
+    // initialize file descriptors;
+    *p2cFD = (int**)calloc(nCore, sizeof(int*));
+    for (i = 0; i < nCore; i++)
+        (*p2cFD)[i] = (int*)calloc(2, sizeof(int));
+    *c2pFD = (int**)calloc(nCore, sizeof(int*));
+    for (i = 0; i < nCore; i++)
+        (*c2pFD)[i] = (int*)calloc(2, sizeof(int));
+
+    // check memory allocation error
+    flag = 1;
+    if (!(pids && p2cFD && c2pFD))
+        flag = 0;
+    for (i = 0; i < nCore; i++) {
+        if (!(p2cFD[i] && c2pFD[i]))
+            flag = 0;
+    }
+    if (!flag) {
+        gettime(time_str);
+        printf("[%s] Parent process ID%d error: memory allocation failed!\n", time_str, getpid());
+        freemem(nCore, *pids, *p2cFD, *c2pFD);
+        exit(1);
     }
 }
 
@@ -247,30 +280,9 @@ int main(int argc, char **argv) {
 
     // get the number of available processors
     nCore = sysconf(_SC_NPROCESSORS_ONLN) - 1;
-    // initialize the pid array
-    pids = (int*)calloc(nCore, sizeof(int));
-    // initialize file descriptors;
-    p2cFD = (int**)calloc(nCore, sizeof(int*));
-    for (i = 0; i < nCore; i++)
-        p2cFD[i] = (int*)calloc(2, sizeof(int));
-    c2pFD = (int**)calloc(nCore, sizeof(int*));
-    for (i = 0; i < nCore; i++)
-        c2pFD[i] = (int*)calloc(2, sizeof(int));
 
-    // check memory allocation error
-    flag = 1;
-    if (!(pids && p2cFD && c2pFD))
-        flag = 0;
-    for (i = 0; i < nCore; i++) {
-        if (!(p2cFD[i] && c2pFD[i]))
-            flag = 0;
-    }
-    if (!flag) {
-        gettime(time_str);
-        printf("[%s] Parent process ID%d error: memory allocation failed!\n", time_str, getpid());
-        freemem(nCore, pids, p2cFD, c2pFD);
-        exit(1);
-    }
+    // allocate memory
+    allocmem(nCore, &pids, &p2cFD, &c2pFD);
 
     // create pipes
     createPipes(nCore, pids, p2cFD, c2pFD);
