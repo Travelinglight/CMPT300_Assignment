@@ -100,6 +100,19 @@ void freemem(int nCore, int *pids, int **p2cFD, int **c2pFD) {
     }
 }
 
+/*------------------------------------------------- allocmem ----------
+ *|  Function allocmem
+ *|  Purpose: allocate memory
+ *|  Parameters:
+ *|         int nCore: the number of child processes
+ *|         int **pids: pointer to the array of child processes' pid
+ *|         int ***p2cFD: the pointer to the 2nd order array of pipe fd
+ *|                     from parent to children
+ *|         int ***c2pFD: the pointer to the 2nd order array of pipe fd
+ *|                     from children to parent
+.*|
+ *|  Returns:  void
+ **-------------------------------------------------------------------*/
 void allocmem(int nCore, int **pids, int ***p2cFD, int ***c2pFD) {
     int i;
     int flag;
@@ -131,35 +144,55 @@ void allocmem(int nCore, int **pids, int ***p2cFD, int ***c2pFD) {
     }
 }
 
-void createPipes(int nCore, int *pids, int **p2cFD, int **c2pFD) {
+/*------------------------------------------------- createPipes ------
+ *|  Function createPipes
+ *|  Purpose: create pipes for child-parent processes communication
+ *|  Parameters:
+ *|         int nCore: the number of child processes
+ *|         int **p2cFD: the 2nd order array of pipe fd from parent 
+ *|                 to children
+ *|         int **c2pFD: the 2nd order array of pipe fd from children 
+ *|                 to parent
+.*|
+ *|  Returns:  int: state, 0 for success, else for error
+ **-------------------------------------------------------------------*/
+int createPipes(int nCore, int **p2cFD, int **c2pFD) {
     int i;
     char time_str[MAX_TIME_STR];
 
     for (i = 0; i < nCore; i++) {
         // create pipe from parent to children
-        if (pipe(p2cFD[i]) == -1) {
-            gettime(time_str);
-            printf("[%s] pipe creating failed.\n", time_str);
-            freemem(nCore, pids, p2cFD, c2pFD);
-            exit(1);
-        }
+        if (pipe(p2cFD[i]) == -1)
+            return 1;
 
         // create pipe from parent to children
-        if (pipe(c2pFD[i]) == -1) {
-            gettime(time_str);
-            printf("[%s] pipe creating failed.\n", time_str);
-            freemem(nCore, pids, p2cFD, c2pFD);
-            exit(1);
-        }
+        if (pipe(c2pFD[i]) == -1)
+            return 1;
     }
+    return 0;
 }
 
-
-void childRoutine(int nCore, int pCP, int **p2cFD, int **c2pFD, char *buff, char *encpt, char *decpt) {
+/*------------------------------------------------- childRoutine -----
+ *|  Function childRoutine
+ *|  Purpose: the things child process does after it's been created
+ *|  Parameters:
+ *|         int nCore: the number of child processes
+ *|         int pCP: which child process it is
+ *|         int **p2cFD: the 2nd order array of pipe fd from parent 
+ *|                 to children
+ *|         int **c2pFD: the 2nd order array of pipe fd from children 
+ *|                 to parent
+.*|         char *buff: the buffer
+.*|
+ *|  Returns:  int: state, 0 for success, else for error
+ **-------------------------------------------------------------------*/
+void childRoutine(int nCore, int pCP, int **p2cFD, int **c2pFD, char *buff) {
     int i;
     int nBytes;
     int state = -1;
     char time_str[MAX_TIME_STR];
+    char encpt[MAX_FNAME];  // file name of encrypted tweets
+    char decpt[MAX_FNAME];  // file name of decrypted tweets
 
     // close unnecessary pipes
     for (i = 0; i < nCore; i++) {
@@ -255,8 +288,6 @@ void killson(int pCP, int *alive, int **p2cFD, int **c2pFD, int *pids, char *buf
  *|  Returns:  execution state, 0 for normal, else for error
  **-------------------------------------------------------------------*/
 int main(int argc, char **argv) {
-    char encpt[MAX_FNAME];  // file name of encrypted tweets
-    char decpt[MAX_FNAME];  // file name of decrypted tweets
     char time_str[MAX_TIME_STR];
     char buff[MAX_BUFF];    // buffer
     pid_t c_pid;            // child process ID
@@ -285,7 +316,12 @@ int main(int argc, char **argv) {
     allocmem(nCore, &pids, &p2cFD, &c2pFD);
 
     // create pipes
-    createPipes(nCore, pids, p2cFD, c2pFD);
+    if (createPipes(nCore, p2cFD, c2pFD)) {
+        gettime(time_str);
+        printf("[%s] pipe creating failed.\n", time_str);
+        freemem(nCore, pids, p2cFD, c2pFD);
+        exit(1);
+    }
 
     // create all child processes
     for (i = 0; i < nCore; i++) {
@@ -296,7 +332,7 @@ int main(int argc, char **argv) {
         c_pid = fork();
         if (c_pid == 0) {   // in child process
             // do things
-            childRoutine(nCore, pCP, p2cFD, c2pFD, buff, encpt, decpt);
+            childRoutine(nCore, pCP, p2cFD, c2pFD, buff);
 
             // close pipe
             close(p2cFD[pCP][0]);
