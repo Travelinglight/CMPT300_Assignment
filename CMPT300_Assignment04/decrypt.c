@@ -9,6 +9,15 @@
 
 #include "decrypt.h"
 
+/*------------------------------------------------- fastpower --------
+ *|  Function fastpower
+ *|  Purpose:  perfome x^y % m operation in O(log y) time
+ *|  Parameters: 
+ *|         unsigned long long x: the base
+ *|         unsigned long long y: the power number
+ *|         unsigned long long m: the modular number
+ *|  Returns:  unsigned long long: the result
+ **-------------------------------------------------------------------*/
 unsigned long long fastpower(unsigned long long x, unsigned long long y, unsigned long long m) {    // x^y mod m
     unsigned long long res = 1;
     unsigned long long tmp = x;
@@ -21,6 +30,14 @@ unsigned long long fastpower(unsigned long long x, unsigned long long y, unsigne
     return res;
 }
 
+/*------------------------------------------------- decrypt ----------
+ *|  Function decrypt
+ *|  Purpose: to decrypt a string and replace the original string with
+ *|             the decrypted string
+ *|  Parameters: 
+ *|         char *str: the original string to be decrypted
+ *|  Returns:  none
+ **-------------------------------------------------------------------*/
 void decrypt(char *str) {
     int i, j, len;     // len: the number of blocks (of 6) in string after step 1
     char *oristr;   // original string

@@ -16,13 +16,14 @@
 #include <string.h>
 #include "memwatch.h"
 
-////////////////////////////////////////////////////////////////////////////////
-// NAME: gettime
-// DESCRIPTION: get current time for message.
-// USES GLOBAL: none
-// MODIFIES GL: time_str
-// RETURNS: none
-// /////////////////////////////////////////////////////////////////////////////
+/*------------------------------------------------- gettime ----------
+ *|  Function gettime
+ *|  Purpose: get current time and format it into the given string
+ *|  Parameters: 
+ *|         char *str: the string where the formatted time is to be
+ *|                 stored.
+ *|  Returns:  none
+ **-------------------------------------------------------------------*/
 void gettime(char *time_str);
 
 #endif

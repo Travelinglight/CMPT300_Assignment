@@ -31,11 +31,6 @@
 #define MAX_BUFF 2500
 #define MAX_FNAME 1250
 
-/* global variables */
-char buff[MAX_BUFF];    // buffer
-int skt;                // socket fd to server
-int state = -1;        // decrypt state;
-
 /*------------------------------------------------- callhome ---------
  *|  Function callhome
  *|  Purpose: connect to server
@@ -103,6 +98,33 @@ void freemem(int nCore, int *pids, int **p2cFD, int **c2pFD) {
     }
 }
 
+void createPipes(int nCore, int *pids, int **p2cFD, int **c2pFD) {
+    int i;
+    char time_str[MAX_TIME_STR];
+
+    for (i = 0; i < nCore; i++) {
+        // create pipe from parent to children
+        if (pipe(p2cFD[i]) == -1) {
+            gettime(time_str);
+            printf("[%s] pipe creating failed.\n", time_str);
+            freemem(nCore, pids, p2cFD, c2pFD);
+            exit(1);
+        }
+
+        // create pipe from parent to children
+        if (pipe(c2pFD[i]) == -1) {
+            gettime(time_str);
+            printf("[%s] pipe creating failed.\n", time_str);
+            freemem(nCore, pids, p2cFD, c2pFD);
+            exit(1);
+        }
+    }
+}
+
+
+void createChildren(int nCore, int *pids, int **p2cFD, int **c2pFD) {
+}
+
 /*------------------------------------------------- killson ---------
  *|  Function killson
  *|  Purpose: make a child process exit
@@ -155,6 +177,7 @@ int main(int argc, char **argv) {
     char encpt[MAX_FNAME];  // file name of encrypted tweets
     char decpt[MAX_FNAME];  // file name of decrypted tweets
     char time_str[MAX_TIME_STR];
+    char buff[MAX_BUFF];    // buffer
     pid_t c_pid;            // child process ID
     pid_t pid;              // for waiting
     int pCP, i, j, flag;    // pCP stands for the child process number
@@ -167,6 +190,8 @@ int main(int argc, char **argv) {
     int nfds;               // the max range of readfd for select
     fd_set readfds;         // the set of read fd for select
     int nBytes;             // number of bytes read from pipe
+    int state = -1;         // decrypt state;
+    int skt;                // socket fd to server
 
     // check for the arguments
     if (argc != 3) {
@@ -188,7 +213,7 @@ int main(int argc, char **argv) {
 
     // check memory allocation error
     flag = 1;
-    if (!(time_str && buff && encpt && decpt && pids && p2cFD && c2pFD))
+    if (!(pids && p2cFD && c2pFD))
         flag = 0;
     for (i = 0; i < nCore; i++) {
         if (!(p2cFD[i] && c2pFD[i]))
@@ -202,23 +227,7 @@ int main(int argc, char **argv) {
     }
 
     // create pipes
-    for (i = 0; i < nCore; i++) {
-        // create pipe from parent to children
-        if (pipe(p2cFD[i]) == -1) {
-            gettime(time_str);
-            printf("[%s] pipe creating failed.\n", time_str);
-            freemem(nCore, pids, p2cFD, c2pFD);
-            exit(1);
-        }
-
-        // create pipe from parent to children
-        if (pipe(c2pFD[i]) == -1) {
-            gettime(time_str);
-            printf("[%s] pipe creating failed.\n", time_str);
-            freemem(nCore, pids, p2cFD, c2pFD);
-            exit(1);
-        }
-    }
+    createPipes(nCore, pids, p2cFD, c2pFD);
 
     // create all child processes
     for (i = 0; i < nCore; i++) {

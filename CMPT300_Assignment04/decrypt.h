@@ -15,13 +15,14 @@
 #include <string.h>
 #include "memwatch.h"
 
-////////////////////////////////////////////////////////////////////////////////
-// NAME: lyreegg
-// DESCRIPTION: decrypt a string (replace the original string)
-// USES GLOBAL: none
-// MODIFIES GL: str
-// RETURNS: none
-// /////////////////////////////////////////////////////////////////////////////
+/*------------------------------------------------- decrypt ----------
+ *|  Function decrypt
+ *|  Purpose: to decrypt a string and replace the original string with
+ *|             the decrypted string
+ *|  Parameters: 
+ *|         char *str: the original string to be decrypted
+ *|  Returns:  none
+ **-------------------------------------------------------------------*/
 void decrypt(char *str);
 
 #endif

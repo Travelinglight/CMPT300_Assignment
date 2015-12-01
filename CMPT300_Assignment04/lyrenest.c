@@ -109,7 +109,7 @@ void showServer(int skt) {
     char time_str[MAX_TIME_STR];
     char hostaddr[MAX_IP_ADDR];
 
-    getsockname(skt, (struct sockaddr*)&sa, &len);
+    getsockname(skt, (struct sockaddr*)&sa, (unsigned int*)&len);
     inet_ntop(AF_INET, &(sa.sin_addr), hostaddr, MAX_IP_ADDR);
     gettime(time_str);
     printf("[%s] lyrebird.server: PID %d on host %s, port %d\n", time_str, getpid(), hostaddr, ntohs(sa.sin_port));
@@ -163,7 +163,7 @@ int welcome(int serverSkt, client *clients, FILE *lfp) {
     client *newNode;
 
     // accept connection
-    t = accept(serverSkt, (struct sockaddr*)&sa, &len);
+    t = accept(serverSkt, (struct sockaddr*)&sa, (unsigned int*)&len);
     if (t < 0)
         return 1;
 

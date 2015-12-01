@@ -21,8 +21,8 @@ int lyrelisten(int skt, char *buff, int len) {
     char tmp[MAX_BUFF];
     char *pos = NULL;
 
-    memset(buff, 0, sizeof(buff));
-    memset(tmp, 0, sizeof(tmp));
+    memset(buff, 0, MAX_BUFF * sizeof(char));
+    memset(tmp, 0, MAX_BUFF * sizeof(char));
     while (pos == NULL) {
         if (strlen(buff) + strlen(tmp) >= len) {
             return 1;
