@@ -1,3 +1,42 @@
-Reference:
-[1] get IP address : http://www.stackoverflow.com/questions/2283494/get-ip-address-of-an-interface-on-linux
-[2] set up server:
+=====================================================================================================================
+ _      _      __    _______       ________    ______       __     _______      _____         _________           _
+| |     \ \   / /   | -----\ \    | _______|  |  ____ \    |__|   | -----\ \   |  ___ \      |_   ___  |         | |
+| |      \ \_/ /    | |____| |    | |         | |____| |    __    | |____| |   | |    \ \      | |   | |         | |
+| |       \   /     |  ___  /     | |______   |       /    |  |   |  ___  /    | |     \ \     | |    \ \       / /
+| |        | |      | |  \ \      |  ______|  |  ____ \    |  |   | |  \ \     | |      | |    | |     \ \     / /
+| |        | |      | |   \ \     | |         | |    \ |   |  |   | |   \ \    | |     / /     | |      \ \   / /
+| |__      | |      | |    \ \    | |______   | |____/ /   |  |   | |    \ \   | |____/ /     _| |_      \ \_/ /
+|____|     |_|      |_|     \_\   |________|  |_______/    |__|   |_|     \_\  |______/      |_____|      \__ /
+=====================================================================================================================
+
+
+## Basic Info
+------------------------------------------------
+           my name : Jingda(Kingston) Chen    
+    student number : 301295759                
+     SFU user name : jca303                   
+   lecture section : CMPT 300 D100, Fall 2015 
+ instructor's name : Brian Booth              
+         TA's name : Scott Kristjanson        
+
+
+## Project Description
+------------------------------------------------
+Lyrebird III is a project for decrypting tweets using the decryption algorithm descripted in Assignment #1 pdf. The main improvements compared with Lyrebird II is:
+
+1. Lyrebird III creates nCore child processes, where nCore is the current number of available processors. Each child process decrypt several tweets files. Compared with Lyrebird II, Lyrebird III creates much fewer child processes, which means it saves lots of time and resources on fork() as well as on context switch.
+
+2. Lyrebird III use pipe for parent-child processes communication. Parent process assigns tasks to child process by writing to pipe, and child processes report to parent process through pipe when they finish a task.
+
+3. Lyrebird III allows user to choose scheduling mode (round robin or fcfs), and assign tasks to child processes using the scheduling algorithm told by user in config file.
+
+4. When a decryption fails, the child process doesn't exit. Instead, it would print a line of error info and ask for another task.
+
+## Building and Running
+------------------------------------------------
+1. Please put memwatch.h and memwatch.c in root folder;
+2. Type "make clean", to make sure that previous building is cleaned up;
+3. Execute command "make", to build the project;
+4. The executable binary file "lyrebird" is in root directory;
+5. Place the configure file at the same directory with the executable file (lyrebird), and run with the command: ./lyrebird [configure file]
+    e.g. ./lyrebird config_file.txt
