@@ -98,7 +98,7 @@ int serverInit() {
  *|  Function showServer
  *|  Purpose:  Print the server PID, IP address, and port number
  *|  Parameters:
- *|         int skt: the server socket that listens on a port;
+ *|         int skt: the server socket that listens on a port
 .*|
  *|  Returns:  void
  **-------------------------------------------------------------------*/
@@ -112,6 +112,47 @@ void showServer(int skt) {
     inet_ntop(AF_INET, &(sa.sin_addr), hostaddr, MAX_IP_ADDR);
     gettime(time_str);
     printf("[%s] lyrebird.server: PID %d on host %s, port %d\n", time_str, getpid(), hostaddr, ntohs(sa.sin_port));
+}
+
+/*------------------------------------------------- showServer -------
+ *|  Function showServer
+ *|  Purpose:  Print the error info of Server Initialization
+ *|  Parameters:
+ *|         int code: the error code
+.*|
+ *|  Returns:  void
+ **-------------------------------------------------------------------*/
+void showInitErr(int code) {
+    char buff[MAX_BUFF];
+    char time_str[MAX_TIME_STR];
+
+    switch(code) {
+        case -1:
+            sprintf(buff, "getifaddrs failed");
+            break;
+        case -2:
+            sprintf(buff, "getnameinfo failed");
+            break;
+        case -3:
+            sprintf(buff, "get ip address failed");
+            break;
+        case -4:
+            sprintf(buff, "gethostbyname failed");
+            break;
+        case -5:
+            sprintf(buff, "socket init failed");
+            break;
+        case -6:
+            sprintf(buff, "bind socket and address failed");
+            break;
+        case -7:
+            sprintf(buff, "socket listen error");
+            break;
+        default:
+            sprintf(buff, "unknown error");
+    }
+    gettime(time_str);
+    printf("[%s] Server ID #%d error: %s.\n", time_str, getpid(), buff);
 }
 
 /*------------------------------------------------- destruct ---------
@@ -259,33 +300,7 @@ int main(int argc, char **argv) {
 
     // establishment
     if ((serverSkt = serverInit()) < 0) {
-        switch(serverSkt) {
-            case -1:
-                sprintf(buff, "getifaddrs failed");
-                break;
-            case -2:
-                sprintf(buff, "getnameinfo failed");
-                break;
-            case -3:
-                sprintf(buff, "get ip address failed");
-                break;
-            case -4:
-                sprintf(buff, "gethostbyname failed");
-                break;
-            case -5:
-                sprintf(buff, "socket init failed");
-                break;
-            case -6:
-                sprintf(buff, "bind socket and address failed");
-                break;
-            case -7:
-                sprintf(buff, "socket listen error");
-                break;
-            default:
-                sprintf(buff, "unknown error");
-        }
-        gettime(time_str);
-        printf("[%s] Server ID #%d error: %s.\n", time_str, getpid(), buff);
+        showInitErr(serverSkt);
         exit(1);
     }
     showServer(serverSkt);

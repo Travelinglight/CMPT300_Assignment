@@ -9,6 +9,14 @@
 
 #include "lyreegg.h"
 
+/*------------------------------------------------- lyreegg ----------
+ *|  Function lyreegg
+ *|  Purpose:  decrypt given file and write to the designated file
+ *|  Parameters:
+ *|         char *infile: the encrypted file name
+ *|         char *outfile: the decrypted file name
+ *|  Returns:  int standing for state, 0 for success, else for err
+ **-------------------------------------------------------------------*/
 int lyreegg(char *infile, char *outfile) {
     char time_str[30];
     char *str;
