@@ -62,6 +62,9 @@ Lyrebird.client is specified in lyrebird.c. It first fork n-1 child processes, w
 1. Please put memwatch.h and memwatch.c in root folder;
 2. Type "make clean", to make sure that previous building is cleaned up;
 3. Execute command "make", to build the project;
-4. The executable binary file "lyrebird" is in root directory;
-5. Place the configure file at the same directory with the executable file (lyrebird), and run with the command: ./lyrebird [configure file]
-    e.g. ./lyrebird config_file.txt
+4. The executable binary file lyrebird.server and lyrebird.client are in root directory;
+5. put the lyrebird.server on a server machine, along with the configure file and log file, and run the command:
+        ./lyrebird.server [configure file] [log file]
+6. put lyrebird.client on another computer, along with the encrypted files, and run the command:
+        ./lyrebird.client [IP address] [port number]
+   Note here the IP address and the port number are same as those printed by lyrebird.server

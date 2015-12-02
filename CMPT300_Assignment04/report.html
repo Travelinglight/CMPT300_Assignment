@@ -1,12 +1,14 @@
+<!--  
+    // Basic Info
+    //------------------------------------------------
+    //           my name : Jingda(Kingston) Chen    
+    //    student number : 301295759                
+    //     SFU user name : jca303                   
+    //   lecture section : CMPT 300 D100, Fall 2015 
+    // instructor's name : Brian Booth              
+    //         TA's name : Scott Kristjanson    
+-->
 <!DOCTYPE html>
-// Basic Info
-//------------------------------------------------
-//           my name : Jingda(Kingston) Chen    
-//    student number : 301295759                
-//     SFU user name : jca303                   
-//   lecture section : CMPT 300 D100, Fall 2015 
-// instructor's name : Brian Booth              
-//         TA's name : Scott Kristjanson    
 <html>
     <head>
         <style>
@@ -37,24 +39,63 @@
     </head>
     <body>
         <div class = "title block">
-            <h1>Lyrebird II</h1>
+            <h1>Lyrebird IV</h1>
         </div>
         <div class = "block">
             <h3>Overview</h3>
-            <p>This project is a multi-process decrypter which decrypts several encripted files simultaneously. The project mainly consists of three parts: main block, lyreegg block and decrypt block. The main block specifies the parent/child processes relations, such as how many child processes to create, how to communicate, and what to communicate. The lyreegg block is in charge of handling decriptions. It reads every line of the given input file, calls decrpyt block and then writes the result to the designated files. In each block, gettime function is called to get current time in case a message needs to be printed.</p>
+            <p>This project is a 3-level decryption system. The top level is server, whose job is to read config file and dispatch tasks to clients. The second level is one or more clients, responsible for dispatching tasks assigned by server to child processes. The bottom level is all the child processes of clients. They perform obtain the tasks from clients and do the real decryption job.</p>
         </div>
         <div class = "block">
             <h3>Design & Implementation</h3>
-            <p>The four components of this project are: main, lyreegg, decrypt and gettime.</p>
-            <p><b>gettime:</b>contains one function (gettime). It is used to get the current time and format it into a string provided in arguments. The time string would be used at the beginning of each message. This block is called in all three other blocks.</p>
-            <p><b>decrypt:</b>contains two functions (decrypt, fastpower). Decrypt function decrypts the string given by argument, and stores the decryption result in the given string. While decrypting, the fastpower function would be called inside decrypt function, to perform power fast. This block is called inside lyreegg function, to decrypt each line of the encrypted file.</p>
-            <p><b>lyreegg:</b>contains one function (lyreegg). It is used to decrypt a given file, and write the results into another file. This block is transformed from the main function of Lyrebird I, called by child process, when it gets a task and need to decrypt a file.</p>
-            <p><b>main:</b>contains three functions (main, freemem, killson). The main function create nCore child processes, where nCore is the number of available processors. It also create pipes for parent/child communications. The scheduling mode is read from config file and set in the main function. After all the child processes are created, the parent process read config file and assign tasks to children according to the scheduling algorithm through pipes. These are all defined in main function. The other two functions: freemem and killson, are used to free allocated memory before exiting and to kill a child process when it is necessary.</p>
+            <p>
+                <b>START UP : </b>
+                First, the server obtain it's ipv4 IP address using function getifaddrs() and specify a sockaddr_in struct with the IP address. 
+                Then it sets up a socket using function socket() and bind the socket with the sockaddr_in struct specified before using function bind(). 
+                After finishing that, the server calls function listen() to listen on a random port. 
+                Finally, it prints out the IP address and port number. 
+                The clients then could start with the IP address and port number as arguments. 
+                Once a client started, it first find out the number of available processors on its machine (say n), and fork n-1 child processes. 
+                The process of creating child processes could be find in the report of lyrebird III. 
+                After all the child processes are created, a client make a connection to the server using function connect().  
+                The server, who keeps listening with the function select(), hears the connection and uses function accept() to accept the connection. 
+                So far, lyrebird.server and lyrebird.client have set up a connection.</p>
+            <p>
+                <b>DECRYPTION : </b>
+                After lyrebird.server and lyrebird.clients are connected, the lyrebird system is ready to perform the decryption tasks. 
+                This process could be better descripted as bottom-up requirements rather than top-down assignments. 
+                First, once a chlild process of a client is created, it send a message "ready" to the parent process through pipe. 
+                The parent process then send the same message to the server through socket. 
+                The "ready" message is a message of requiring tasks. 
+                The server, checking each connection with the function select(), detects the message as receive the message with function recv(). 
+                If the message is "ready", the server knows it's the first time of a child process so it directly send the task to the client with function send().
+                Getting the task sent by the server, the client then dispatch the task to the child process, who would parse the task line, open the encrypted file and decrypted file, and do the decryption.
+            </p>
+            <p>
+                After doing the decryption task, child process send a message to the parent process through pipe, to report error or success.
+                This message is also a task requiring message.
+                The parent process send this message to the server in the same way it sends "ready" before.
+                Hearing this message, the server knows the former task is performed, either successfully or with an error.
+                It print the message to the log file after adding a time stamp to it.
+                Again, the server need to read the next conf file line, send the task to the client, and wait for another message.
+                The process repeat and repeat until there're no tasks to be performed. 
+                Then the system enters the TERMINATION stage.
+            </p>
+            <p>
+                <b>TERMINATION : </b>
+                The termination is also a bottom-up process.
+                Once the server read config file to the end, it send the message "goodjob" to every task-requiring message.
+                The message is passed to a child process through parent process of a client.
+                This message is like poison. The child process who receive this message exit with the protocol specified in lyrebird III.
+                When all the child processes of a client are dead, the parent process then send a message to the server saying "bye", before it close the socket and exit.
+                Then, the server receives the "bye" message, close the corresponding socket and move this client from its client list.
+                After all the clients saying "bye", the server reaches the condition that no tasks remain and no clients exit.
+                It closes files, frees memory, and finally die.
+            </p>
         </div>
         <div class="block">
             <h3>Testing</h3>
-            <p>I reused the testing package for assignment #2 to test Lyrebird III. first I added a line "fcfs" at the beginning of each configuration file, and ran the test by command line. Then I changed the first line of each configuration file to "round robin", to test round robin scheduling.</p>
-            <p>The testing case 5 failed for both scheduling mode. The number of output messages does not comply with the correct_message. I checked it manually and found the correct_message is for assignment #2, which has not only "cannot open file" message but also "terminate unsuccessfully" message, which is unnecessary in Lyrebird III. So all the testing cases passed. </p> 
+            <p>I reused the testing package for assignment #3 to test Lyrebird IV. first I deleted all dispatching mode line ("fcfs" or "round robin"). Then I put all the config file and the lyrebird.server executable on a CSIL Lab machine, and start it. Next, I started a client on my own laptop, accepted tasks and did the descryption work. After the client and server exited, I used part of the code in test_assign3.sh to compare my output and the corrected output. I did the above steps for all the 9 test points given in assignment #3 test package.</p>
+            <p>The second test I did was to test multi-client system. Again I ran the server on a CSIL Lab machine. Then I put another lyrebird.client copy on my classmate's laptop. I typed commands of starting a client on both laptops and pressed ENTER key at the same time. Because the correctness of output has been tested in the first test, I only have to check the log file, to see whether it contains the connection message, dispatching message, task results and the disconnection message.</p>
         </div>
         <div style="height:15px;"></div>
     </body>
