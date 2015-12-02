@@ -114,8 +114,8 @@ void showServer(int skt) {
     printf("[%s] lyrebird.server: PID %d on host %s, port %d\n", time_str, getpid(), hostaddr, ntohs(sa.sin_port));
 }
 
-/*------------------------------------------------- showServer -------
- *|  Function showServer
+/*------------------------------------------------- showInitErr -------
+ *|  Function showInitErr
  *|  Purpose:  Print the error info of Server Initialization
  *|  Parameters:
  *|         int code: the error code

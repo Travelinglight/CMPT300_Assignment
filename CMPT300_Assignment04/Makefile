@@ -33,3 +33,4 @@ clean:
 	rm -f core
 	rm -f lyrebird.server
 	rm -f lyrebird.client
+	rm -f memwatch.log
