@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+// Basic Info
+//------------------------------------------------
+//           my name : Jingda(Kingston) Chen    
+//    student number : 301295759                
+//     SFU user name : jca303                   
+//   lecture section : CMPT 300 D100, Fall 2015 
+// instructor's name : Brian Booth              
+//         TA's name : Scott Kristjanson    
+<html>
+    <head>
+        <style>
+            body, html {
+                font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
+                background-color: #f1f1f1;
+                margin:0px;
+                padding:0px;
+            }
+            div.title {
+                text-align:center;
+            }
+            div.block {
+                margin:auto;
+                margin-top: 15px;
+                padding:15px;
+                width:1160px;
+                background:white;
+                font-size:120%;
+            }
+            code {
+                display:block;
+                padding:5px;
+                white-space:pre-wrap;
+                background: lavender; 
+            }
+        </style>
+    </head>
+    <body>
+        <div class = "title block">
+            <h1>Lyrebird II</h1>
+        </div>
+        <div class = "block">
+            <h3>Overview</h3>
+            <p>This project is a multi-process decrypter which decrypts several encripted files simultaneously. The project mainly consists of three parts: main block, lyreegg block and decrypt block. The main block specifies the parent/child processes relations, such as how many child processes to create, how to communicate, and what to communicate. The lyreegg block is in charge of handling decriptions. It reads every line of the given input file, calls decrpyt block and then writes the result to the designated files. In each block, gettime function is called to get current time in case a message needs to be printed.</p>
+        </div>
+        <div class = "block">
+            <h3>Design & Implementation</h3>
+            <p>The four components of this project are: main, lyreegg, decrypt and gettime.</p>
+            <p><b>gettime:</b>contains one function (gettime). It is used to get the current time and format it into a string provided in arguments. The time string would be used at the beginning of each message. This block is called in all three other blocks.</p>
+            <p><b>decrypt:</b>contains two functions (decrypt, fastpower). Decrypt function decrypts the string given by argument, and stores the decryption result in the given string. While decrypting, the fastpower function would be called inside decrypt function, to perform power fast. This block is called inside lyreegg function, to decrypt each line of the encrypted file.</p>
+            <p><b>lyreegg:</b>contains one function (lyreegg). It is used to decrypt a given file, and write the results into another file. This block is transformed from the main function of Lyrebird I, called by child process, when it gets a task and need to decrypt a file.</p>
+            <p><b>main:</b>contains three functions (main, freemem, killson). The main function create nCore child processes, where nCore is the number of available processors. It also create pipes for parent/child communications. The scheduling mode is read from config file and set in the main function. After all the child processes are created, the parent process read config file and assign tasks to children according to the scheduling algorithm through pipes. These are all defined in main function. The other two functions: freemem and killson, are used to free allocated memory before exiting and to kill a child process when it is necessary.</p>
+        </div>
+        <div class="block">
+            <h3>Testing</h3>
+            <p>I reused the testing package for assignment #2 to test Lyrebird III. first I added a line "fcfs" at the beginning of each configuration file, and ran the test by command line. Then I changed the first line of each configuration file to "round robin", to test round robin scheduling.</p>
+            <p>The testing case 5 failed for both scheduling mode. The number of output messages does not comply with the correct_message. I checked it manually and found the correct_message is for assignment #2, which has not only "cannot open file" message but also "terminate unsuccessfully" message, which is unnecessary in Lyrebird III. So all the testing cases passed. </p> 
+        </div>
+        <div style="height:15px;"></div>
+    </body>
+</html>
